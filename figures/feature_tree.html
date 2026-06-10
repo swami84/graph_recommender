@@ -1,0 +1,92 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  :root{ --mut:#6c757d; --teal:#2f9e8c; --coral:#c75d62; --slate:#5f6b7a; --blue:#3b82c4; --amber:#e0922f; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:#eef1f5; font-family:'Helvetica Neue',Arial,'Liberation Sans',sans-serif; }
+  #wrap{ width:1020px; background:#fff; padding:28px 30px 26px; }
+  h1{ text-align:center; font-size:28px; color:#222; margin:2px 0 2px; }
+  .sub{ text-align:center; color:var(--mut); font-size:14px; margin:0 0 4px; }
+  svg{ width:100%; height:760px; display:block; }
+  .nl{ fill:#fff; font-weight:700; text-anchor:middle; dominant-baseline:central; }
+  .nsub{ fill:#eef1f4; text-anchor:middle; dominant-baseline:central; }
+  .conn{ stroke:#cfd5dd; stroke-width:2.2; fill:none; }
+  .gname{ font-size:15px; font-weight:700; }
+  .gex{ fill:#5d6470; font-size:12.5px; }
+  .pill{ font-size:12px; font-weight:700; fill:#fff; text-anchor:middle; dominant-baseline:central; }
+  .leg{ fill:#37414e; font-size:13px; }
+</style></head>
+<body><div id="wrap">
+  <h1>The feature taxonomy</h1>
+  <p class="sub">≈ 200 candidate features were built; about 145 are actually used by the models</p>
+  <svg viewBox="0 0 1020 760">
+    <defs>
+      <radialGradient id="gteal" cx="35%" cy="28%"><stop offset="0" stop-color="#5cc0ad"/><stop offset="1" stop-color="#258576"/></radialGradient>
+      <radialGradient id="gcoral" cx="35%" cy="28%"><stop offset="0" stop-color="#dd8589"/><stop offset="1" stop-color="#b34a50"/></radialGradient>
+      <radialGradient id="groot" cx="35%" cy="28%"><stop offset="0" stop-color="#79849a"/><stop offset="1" stop-color="#4c586c"/></radialGradient>
+      <filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#2a3550" flood-opacity="0.2"/></filter>
+    </defs>
+
+    <!-- connectors root -> User / Restaurant -->
+    <path class="conn" d="M150,372 C200,372 200,205 250,205"/>
+    <path class="conn" d="M150,372 C200,372 200,556 250,556"/>
+
+    <!-- leaf connectors (User) -->
+    <path class="conn" d="M322,205 C400,205 400,68 470,68"/>
+    <path class="conn" d="M322,205 C400,205 400,156 470,156"/>
+    <path class="conn" d="M322,205 C400,205 400,244 470,244"/>
+    <path class="conn" d="M322,205 C400,205 400,332 470,332"/>
+    <!-- leaf connectors (Restaurant) -->
+    <path class="conn" d="M326,556 C400,556 400,420 470,420"/>
+    <path class="conn" d="M326,556 C400,556 400,508 470,508"/>
+    <path class="conn" d="M326,556 C400,556 400,596 470,596"/>
+    <path class="conn" d="M326,556 C400,556 400,684 470,684"/>
+
+    <!-- root + branch nodes -->
+    <g filter="url(#sh)"><rect x="22" y="338" width="128" height="70" rx="14" fill="url(#groot)"/></g>
+    <text class="nl" x="86" y="364" style="font-size:15px">Feature set</text>
+    <text class="nsub" x="86" y="386" style="font-size:10.5px">≈200 built · ~145 used</text>
+    <g filter="url(#sh)"><circle cx="284" cy="205" r="42" fill="url(#gteal)"/></g><text class="nl" x="284" y="205" style="font-size:16px">User</text>
+    <g filter="url(#sh)"><circle cx="284" cy="556" r="44" fill="url(#gcoral)"/></g><text class="nl" x="284" y="556" style="font-size:15px">Restaurant</text>
+
+    <!-- leaf cards: drawn via repeated groups -->
+    <!-- USER -->
+    <g><rect x="470" y="38" width="520" height="60" rx="12" fill="#eaf2fb" stroke="#3b82c4" stroke-width="1.8"/>
+       <text class="gname" x="492" y="62" fill="#3b82c4">base</text>
+       <rect x="906" y="48" width="62" height="22" rx="11" fill="#3b82c4"/><text class="pill" x="937" y="59">13</text>
+       <text class="gex" x="492" y="84">demographics · location · is-local-guide</text></g>
+    <g><rect x="470" y="126" width="520" height="60" rx="12" fill="#eaf2fb" stroke="#3b82c4" stroke-width="1.8"/>
+       <text class="gname" x="492" y="150" fill="#3b82c4">extended</text>
+       <rect x="906" y="136" width="62" height="22" rx="11" fill="#3b82c4"/><text class="pill" x="937" y="147">44</text>
+       <text class="gex" x="492" y="172">cuisine affinity · geo range · rating behaviour</text></g>
+    <g><rect x="470" y="214" width="520" height="60" rx="12" fill="#fdf2e3" stroke="#e0922f" stroke-width="1.8"/>
+       <text class="gname" x="492" y="238" fill="#e0922f">pref</text>
+       <rect x="906" y="224" width="62" height="22" rx="11" fill="#e0922f"/><text class="pill" x="937" y="235">12</text>
+       <text class="gex" x="492" y="260">spice / noise / formality preference  (LLM)</text></g>
+    <g><rect x="470" y="302" width="520" height="60" rx="12" fill="#fdf2e3" stroke="#e0922f" stroke-width="1.8"/>
+       <text class="gname" x="492" y="326" fill="#e0922f">dietary</text>
+       <rect x="906" y="312" width="62" height="22" rx="11" fill="#e0922f"/><text class="pill" x="937" y="323">6</text>
+       <text class="gex" x="492" y="348">vegan / veg / GF · protein affinities  (LLM)</text></g>
+    <!-- RESTAURANT -->
+    <g><rect x="470" y="390" width="520" height="60" rx="12" fill="#eaf2fb" stroke="#3b82c4" stroke-width="1.8"/>
+       <text class="gname" x="492" y="414" fill="#3b82c4">base</text>
+       <rect x="906" y="400" width="62" height="22" rx="11" fill="#3b82c4"/><text class="pill" x="937" y="411">29</text>
+       <text class="gex" x="492" y="436">price · rating · review count · Food/Service/Atmosphere</text></g>
+    <g><rect x="470" y="478" width="520" height="60" rx="12" fill="#fdf2e3" stroke="#e0922f" stroke-width="1.8"/>
+       <text class="gname" x="492" y="502" fill="#e0922f">attributes  +  cuisine</text>
+       <rect x="888" y="488" width="80" height="22" rx="11" fill="#e0922f"/><text class="pill" x="928" y="499">12 + cz</text>
+       <text class="gex" x="492" y="524"><tspan font-weight="700" fill="#c47a1f">cuisine / type</tspan> · spice · noise · romance  (LLM)</text></g>
+    <g><rect x="470" y="566" width="520" height="60" rx="12" fill="#eaf2fb" stroke="#3b82c4" stroke-width="1.8"/>
+       <text class="gname" x="492" y="590" fill="#3b82c4">extended</text>
+       <rect x="906" y="576" width="62" height="22" rx="11" fill="#3b82c4"/><text class="pill" x="937" y="587">22</text>
+       <text class="gex" x="492" y="612">spatial density · rating trend · CBG foot-traffic</text></g>
+    <g><rect x="470" y="654" width="520" height="60" rx="12" fill="#fdf2e3" stroke="#e0922f" stroke-width="1.8"/>
+       <text class="gname" x="492" y="678" fill="#e0922f">dietary</text>
+       <rect x="906" y="664" width="62" height="22" rx="11" fill="#e0922f"/><text class="pill" x="937" y="675">5</text>
+       <text class="gex" x="492" y="700">vegan / veg / GF / halal / kosher flags  (LLM)</text></g>
+
+    <!-- legend -->
+    <rect x="24" y="724" width="26" height="16" rx="6" fill="#eaf2fb" stroke="#3b82c4" stroke-width="1.6"/><text class="leg" x="58" y="736">analytical (computed)</text>
+    <rect x="250" y="724" width="26" height="16" rx="6" fill="#fdf2e3" stroke="#e0922f" stroke-width="1.6"/><text class="leg" x="284" y="736">LLM-extracted (from reviews)</text>
+  </svg>
+</div></body></html>

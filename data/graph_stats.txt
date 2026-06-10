@@ -1,0 +1,15 @@
+=== Graph Statistics ===
+Nodes:
+  cbg                         666
+  cuisine                      17
+  dish                    517,486
+  restaurant               18,879
+  reviewer              1,964,125
+  TOTAL                 2,501,173
+
+Edges:
+  HAS_CUISINE              18,879
+  LOCATED_IN               18,879
+  REVIEWED             10,010,512
+  SERVES                  517,486
+  TOTAL                10,565,756

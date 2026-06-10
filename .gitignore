@@ -1,0 +1,47 @@
+# ─── Large data & model artifacts (regenerate from the pipeline) ───
+data/*
+!data/feature_groups.json
+!data/graph_stats.txt
+models/
+*.pt
+*.pkl
+*.parquet
+*.npz
+
+# ─── Vendored / build artifacts ───
+llama.cpp/
+*.deb
+cuda-keyring*
+
+# ─── Logs & scratch ───
+logs/
+latest_logs/
+*.log
+*.lock
+
+# ─── Python ───
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.ipynb.bak
+
+# ─── Confidential / unrelated personal files (DocuSign, billing, posters, etc.) ───
+downloaded_files/
+
+# ─── Secrets — NEVER commit ───
+.env
+*.env
+.env.*
+data/.maps_cookies.json
+**/*cookies*.json
+
+# ─── Notebooks — may contain reviewer-level PII in cell outputs; regenerate as needed ───
+*.ipynb
+*.nbconvert.ipynb
+
+# ─── Experiment logs / scratch ───
+exp_logs/
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
