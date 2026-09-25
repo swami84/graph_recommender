@@ -21,6 +21,7 @@ Usage:
     python build_extended_features.py
 """
 
+import argparse
 import logging
 import numpy as np
 import polars as pl
@@ -47,7 +48,8 @@ ITEM_EXT_OUT    = Path("data/item_extended_features.parquet")
 _REVIEWS_COLS = [
     "contributor_id", "place_id", "rating", "timestamp_days_ago",
     "text_len", "has_content", "food_score", "service_score", "atmosphere_score",
-    "meal_type", "price_per_person", "attached_photos",
+    "meal_type", "price_per_person", "attached_photos", "is_local_guide",
+    "predicted_race",
 ]
 
 PRICE_MAP = {
@@ -531,11 +533,30 @@ def build_item_extended(
 
     # ── Feature group A — Dish diversity ──────────────────────────────────────
     _step("A dish diversity")
-    if dishes is not None and profiles is not None:
-        dishes_pd   = dishes.to_pandas()  if isinstance(dishes,   pl.DataFrame) else dishes
+    dishes_pd = None
+    if dishes is not None:
+        dishes_pd = dishes.to_pandas() if isinstance(dishes, pl.DataFrame) else dishes
+        dishes_pd["dish_norm"] = dishes_pd["dish_name"].str.lower().str.strip()
+        dish_counts = (
+            dishes_pd.groupby("place_id")["dish_norm"]
+            .nunique()
+            .rename("dish_count")
+            .reset_index()
+        )
+        values = np.log1p(dish_counts["dish_count"].to_numpy(dtype=float))
+        mn, mx = values.min(), values.max()
+        dish_counts["dish_count"] = (
+            (values - mn) / (mx - mn)
+            if mx > mn
+            else np.full_like(values, 0.5)
+        )
+        result = result.join(
+            pl.from_pandas(dish_counts), on="place_id", how="left"
+        )
+
+    if dishes_pd is not None and profiles is not None:
         profiles_pd = profiles.to_pandas() if isinstance(profiles, pl.DataFrame) else profiles
 
-        dishes_pd["dish_norm"]   = dishes_pd["dish_name"].str.lower().str.strip()
         profiles_pd["dish_norm"] = profiles_pd["dish_name"].str.lower().str.strip()
         feat_cols = [c for c in profiles_pd.columns if c.startswith("f")]
         dish_prof = dishes_pd.merge(
@@ -548,27 +569,28 @@ def build_item_extended(
             cuisine_breadth = int((feat_mat[:, 18:34].sum(axis=0) > 0).sum()) if feat_mat.shape[1] > 33 else 0
             div_records.append({
                 "place_id":           place_id,
-                "dish_count":         grp["dish_norm"].nunique(),
                 "dish_cat_entropy":   _category_entropy(feat_mat),
                 "dish_flavor_div":    _flavor_diversity(feat_mat),
                 "dish_cuisine_breadth": cuisine_breadth,
             })
         if div_records:
             div_pd = pd.DataFrame(div_records)
-            for col in ["dish_count", "dish_cat_entropy", "dish_flavor_div", "dish_cuisine_breadth"]:
+            for col in ["dish_cat_entropy", "dish_flavor_div", "dish_cuisine_breadth"]:
                 arr = div_pd[col].values.astype(float)
-                if col == "dish_count":
-                    arr = np.log1p(arr)
                 mn, mx = arr.min(), arr.max()
                 div_pd[col] = (arr - mn) / (mx - mn) if mx > mn else np.full_like(arr, 0.5)
             div_pl = pl.from_pandas(div_pd)
             result = result.join(div_pl, on="place_id", how="left")
 
-    for col in ["dish_count", "dish_cat_entropy", "dish_flavor_div", "dish_cuisine_breadth"]:
-        if col not in result.columns:
-            result = result.with_columns(pl.lit(0.0).alias(col))
-        else:
-            result = result.with_columns(pl.col(col).fill_null(0.0))
+    # When no leakage-safe dish source is supplied, omit the columns entirely.
+    # Constant-zero placeholders falsely imply that the old dish features were
+    # retained and add no learnable signal.
+    if dishes_pd is not None:
+        for col in ["dish_count", "dish_cat_entropy", "dish_flavor_div", "dish_cuisine_breadth"]:
+            if col not in result.columns:
+                result = result.with_columns(pl.lit(0.0).alias(col))
+            else:
+                result = result.with_columns(pl.col(col).fill_null(0.0))
 
     # ── Feature group B — Location density ────────────────────────────────────
     _step("B location density")
@@ -689,6 +711,64 @@ def build_item_extended(
     for col in keep[1:]:
         result = result.with_columns(pl.col(col).fill_null(0.0))
 
+    # ── Legacy analytical contract ───────────────────────────────────────────
+    # These six features were present in the previous publication files. Keep
+    # their exact semantics while computing them from training reviews only.
+    _step("C2 legacy analytical contract")
+    result = result.with_columns(pl.col("rating_bimodality").alias("rating_std"))
+
+    if _photo_col_r:
+        photo_rate = reviews.group_by("place_id").agg(
+            (pl.col(_photo_col_r).fill_null(0).cast(pl.Float64) > 0)
+            .mean().alias("photo_rate")
+        )
+        result = result.join(photo_rate, on="place_id", how="left")
+    else:
+        result = result.with_columns(pl.lit(0.0).alias("photo_rate"))
+
+    visits = reviews.group_by(["place_id", "contributor_id"]).agg(
+        pl.len().alias("_visits")
+    )
+    repeat_rate = visits.group_by("place_id").agg(
+        (pl.col("_visits") > 1).cast(pl.Float64).mean().alias("repeat_visitor_rate")
+    )
+    result = result.join(repeat_rate, on="place_id", how="left")
+
+    if "is_local_guide" in reviews.columns:
+        local_guides = reviews.group_by("place_id").agg(
+            pl.col("is_local_guide").fill_null(False).cast(pl.Float64)
+            .mean().alias("local_guide_pct")
+        )
+        result = result.join(local_guides, on="place_id", how="left")
+    else:
+        result = result.with_columns(pl.lit(0.0).alias("local_guide_pct"))
+
+    age = reviews.group_by("place_id").agg(
+        pl.col("timestamp_days_ago").cast(pl.Float64, strict=False)
+        .max().alias("restaurant_age_norm")
+    ).with_columns(_norm("restaurant_age_norm", log1p=True))
+    result = result.join(age, on="place_id", how="left")
+
+    if "predicted_race" in reviews.columns:
+        race_gap = (
+            reviews.filter(
+                pl.col("predicted_race").is_not_null() &
+                pl.col("rating_num").is_not_null()
+            )
+            .group_by(["place_id", "predicted_race"])
+            .agg(pl.col("rating_num").mean().alias("_race_mean"))
+            .group_by("place_id")
+            .agg(pl.col("_race_mean").std().fill_null(0.0).alias("race_rating_gap"))
+            .with_columns(_norm("race_rating_gap"))
+        )
+        result = result.join(race_gap, on="place_id", how="left")
+    else:
+        result = result.with_columns(pl.lit(0.0).alias("race_rating_gap"))
+
+    for col in ["rating_std", "photo_rate", "repeat_visitor_rate",
+                "local_guide_pct", "restaurant_age_norm", "race_rating_gap"]:
+        result = result.with_columns(pl.col(col).fill_null(0.0))
+
     # ── Feature group D — CBG foot traffic (SafeGraph mobility) ──────────────
     if CBG_PATTERNS.exists() and "cbg" in restaurants.columns:
         _step("D CBG foot traffic")
@@ -758,6 +838,13 @@ def build_item_extended(
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--no-dish-profiles",
+        action="store_true",
+        help="Exclude existing LLM-derived dish-profile features",
+    )
+    args = parser.parse_args()
     import time as _t
     log.info("Loading data…")
     t0 = _t.time()
@@ -779,8 +866,12 @@ def main():
 
     t3 = _t.time()
     log.info("  Step 4: read dishes/profiles …")
-    dishes   = pl.read_parquet(DISHES_FILE)   if DISHES_FILE.exists()   else None
-    profiles = pl.read_parquet(PROFILES_FILE) if PROFILES_FILE.exists() else None
+    dishes = pl.read_parquet(DISHES_FILE) if DISHES_FILE.exists() else None
+    profiles = (
+        pl.read_parquet(PROFILES_FILE)
+        if PROFILES_FILE.exists() and not args.no_dish_profiles
+        else None
+    )
     log.info(f"  Step 4 done in {_t.time()-t3:.1f}s")
     log.info(f"Loading complete in {_t.time()-t0:.1f}s total")
 

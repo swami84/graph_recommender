@@ -1,0 +1,19 @@
+timestamp,model,variant,precision_at_10,recall_at_10,ndcg_at_10,epochs,emb_dim,n_layers,skip_groups,notes
+2026-09-21 22:10:42,LightGCN,"skip llm,llm_embedding,dish_llm",0.0021,0.0210,0.0104,300,1024,3,"llm,llm_embedding,dish_llm",seed=42; checkpoint=val_ndcg@10; val_hit@10=0.027903; val_ndcg@10=0.013974
+2026-09-21 22:16:34,FeatureTwoTower,skip_llm_llm_embedding_dish_llm,0.0015,0.0148,0.0072,300,1024,0,"llm,llm_embedding,dish_llm",seed=42; checkpoint=val_ndcg@10; val_hit@10=0.018134; val_ndcg@10=0.008721
+2026-09-21 22:39:24,FeatureTwoTower,all,0.0015,0.0154,0.0074,300,1024,0,,seed=42; checkpoint=val_ndcg@10; val_hit@10=0.018518; val_ndcg@10=0.008820
+2026-09-21 22:43:08,KGAT-SAL,"skip llm,llm_embedding,dish_llm T=3 +spatial_cbg",0.0025,0.0247,0.0123,300,1024,4,"llm,llm_embedding,dish_llm",T=3 d_temp=256 d_sal=32 λ_sal=1e-06 kg_layers=2 seed=42 val_hit@10=0.033740 val_ndcg@10=0.016863 checkpoint=val_ndcg@10
+2026-09-21 22:55:05,LightGCN,all features,0.0022,0.0216,0.0106,300,1024,3,,seed=42; checkpoint=val_ndcg@10; val_hit@10=0.030073; val_ndcg@10=0.014953
+2026-09-21 23:16:47,KGAT-SAL,all features T=3 +spatial_cbg,0.0028,0.0279,0.0139,300,1024,4,,T=3 d_temp=256 d_sal=32 λ_sal=1e-06 kg_layers=2 seed=42 val_hit@10=0.038156 val_ndcg@10=0.019211 checkpoint=val_ndcg@10
+2026-09-21 23:16:57,FeatureTwoTower,skip_llm_llm_embedding_dish_llm,0.0015,0.0148,0.0072,300,1024,0,"llm,llm_embedding,dish_llm",seed=43; checkpoint=val_ndcg@10; val_hit@10=0.018235; val_ndcg@10=0.008740
+2026-09-21 23:32:38,LightGCN,"skip llm,llm_embedding,dish_llm",0.0021,0.0209,0.0103,300,1024,3,"llm,llm_embedding,dish_llm",seed=43; checkpoint=val_ndcg@10; val_hit@10=0.028117; val_ndcg@10=0.013884
+2026-09-21 23:49:43,KGAT-SAL,"skip llm,llm_embedding,dish_llm T=3 +spatial_cbg",0.0024,0.0241,0.0120,300,1024,4,"llm,llm_embedding,dish_llm",T=3 d_temp=256 d_sal=32 λ_sal=1e-06 kg_layers=2 seed=43 val_hit@10=0.033274 val_ndcg@10=0.016614 checkpoint=val_ndcg@10
+2026-09-21 23:55:15,FeatureTwoTower,all,0.0015,0.0152,0.0074,300,1024,0,,seed=43; checkpoint=val_ndcg@10; val_hit@10=0.018839; val_ndcg@10=0.009017
+2026-09-22 00:05:28,LightGCN,all features,0.0022,0.0218,0.0108,300,1024,3,,seed=43; checkpoint=val_ndcg@10; val_hit@10=0.029544; val_ndcg@10=0.014801
+2026-09-22 00:27:52,FeatureTwoTower,skip_llm_llm_embedding_dish_llm,0.0015,0.0150,0.0073,300,1024,0,"llm,llm_embedding,dish_llm",seed=44; checkpoint=val_ndcg@10; val_hit@10=0.018008; val_ndcg@10=0.008708
+2026-09-22 00:29:33,KGAT-SAL,all features T=3 +spatial_cbg,0.0028,0.0280,0.0139,300,1024,4,,T=3 d_temp=256 d_sal=32 λ_sal=1e-06 kg_layers=2 seed=43 val_hit@10=0.038772 val_ndcg@10=0.019520 checkpoint=val_ndcg@10
+2026-09-22 00:43:48,LightGCN,"skip llm,llm_embedding,dish_llm",0.0021,0.0212,0.0104,300,1024,3,"llm,llm_embedding,dish_llm",seed=44; checkpoint=val_ndcg@10; val_hit@10=0.028142; val_ndcg@10=0.013951
+2026-09-22 01:03:14,KGAT-SAL,"skip llm,llm_embedding,dish_llm T=3 +spatial_cbg",0.0025,0.0254,0.0126,300,1024,4,"llm,llm_embedding,dish_llm",T=3 d_temp=256 d_sal=32 λ_sal=1e-06 kg_layers=2 seed=44 val_hit@10=0.034520 val_ndcg@10=0.017277 checkpoint=val_ndcg@10
+2026-09-22 01:06:05,FeatureTwoTower,all,0.0015,0.0154,0.0074,300,1024,0,,seed=44; checkpoint=val_ndcg@10; val_hit@10=0.018644; val_ndcg@10=0.009038
+2026-09-22 01:21:10,LightGCN,all features,0.0022,0.0216,0.0106,300,1024,3,,seed=44; checkpoint=val_ndcg@10; val_hit@10=0.029576; val_ndcg@10=0.014780
+2026-09-22 01:40:29,KGAT-SAL,all features T=3 +spatial_cbg,0.0027,0.0267,0.0132,300,1024,4,,T=3 d_temp=256 d_sal=32 λ_sal=1e-06 kg_layers=2 seed=44 val_hit@10=0.037143 val_ndcg@10=0.018625 checkpoint=val_ndcg@10

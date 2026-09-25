@@ -38,10 +38,14 @@ EMB_DIR       = Path("data/embeddings")
 PRED_DIR      = Path("data/predictions")
 REST_ENRICHED = Path("data/restaurants_enriched.parquet")
 GRID_CSV      = Path("results/proximity_grid_search.csv")
+FOCUSED_GRID_CSV = Path("results/llm_feature_proximity_grid.csv")
 
 # ── Model registry ─────────────────────────────────────────────────────────────
 
 MODELS = [
+    {"pred_name": "lightgcn_3l_all_pubsplit", "emb_user": "lightgcn_3l_all_pubsplit_user_embeddings.pt", "emb_item": "lightgcn_3l_all_pubsplit_item_embeddings.pt", "csv_model": "LightGCN", "csv_variant": "LLM v2 publication split", "n_layers": 3, "skip_groups": ""},
+    {"pred_name": "kgat_sal_all_T3_nospatial_pubsplit", "emb_user": "kgat_sal_all_T3_nospatial_pubsplit_user_embeddings.pt", "emb_item": "kgat_sal_all_T3_nospatial_pubsplit_item_embeddings.pt", "csv_model": "KGAT-SAL", "csv_variant": "LLM v2 publication split", "n_layers": 4, "skip_groups": ""},
+    {"pred_name": "infonce_kgat_sal_all_T3_nospatial_pubsplit", "emb_user": "infonce_kgat_sal_all_T3_nospatial_pubsplit_user_embeddings.pt", "emb_item": "infonce_kgat_sal_all_T3_nospatial_pubsplit_item_embeddings.pt", "csv_model": "InfoNCE-KGAT-SAL", "csv_variant": "LLM v2 publication split", "n_layers": 4, "skip_groups": ""},
     {"pred_name": "lightgcn_3l_all",           "emb_user": "lightgcn_3l_all_user_embeddings.pt",              "emb_item": "lightgcn_3l_all_item_embeddings.pt",              "csv_model": "LightGCN",   "csv_variant": "all features", "n_layers": 3, "skip_groups": ""},
     {"pred_name": "lightgcn_3l_llm",           "emb_user": "lightgcn_3l_skip_llm_user_embeddings.pt",         "emb_item": "lightgcn_3l_skip_llm_item_embeddings.pt",         "csv_model": "LightGCN",   "csv_variant": "skip llm",     "n_layers": 3, "skip_groups": "llm"},
     {"pred_name": "lightgcn_4l_all",           "emb_user": "lightgcn_4l_all_user_embeddings.pt",              "emb_item": "lightgcn_4l_all_item_embeddings.pt",              "csv_model": "LightGCN",   "csv_variant": "all features", "n_layers": 4, "skip_groups": ""},
@@ -66,11 +70,9 @@ MODELS_BY_NAME = {m["pred_name"]: m for m in MODELS}
 
 # Grid search targets (best-performing variant per model family)
 GRID_SEARCH_MODELS = [
-    "kgat_all",
-    "radar_all",
-    "kgat_sal_all_T3_nospatial",
-    "infonce_llm",
-    "lightgcn_3l_all",
+    "infonce_kgat_sal_all_T3_nospatial_pubsplit",
+    "kgat_sal_all_T3_nospatial_pubsplit",
+    "lightgcn_3l_all_pubsplit",
 ]
 
 ALPHA_GRID     = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
@@ -288,9 +290,14 @@ def evaluate_blend(cache: CandidateCache, alpha: float, bandwidth_km: float) -> 
     hit     = matches.any(axis=1)
     ranks   = np.where(hit, np.argmax(matches, axis=1) + 1.0, np.nan)
 
-    prec = float(np.mean(hit))
+    recall = float(np.mean(hit))
+    precision = recall / 10.0  # one held-out relevant item per user
     ndcg = float(np.mean(np.where(hit, 1.0 / np.log2(ranks + 1), 0.0)))
-    return {"precision_at_10": round(prec, 4), "recall_at_10": round(prec, 4), "ndcg_at_10": round(ndcg, 4)}
+    return {
+        "precision_at_10": round(precision, 4),
+        "recall_at_10": round(recall, 4),
+        "ndcg_at_10": round(ndcg, 4),
+    }
 
 
 # ── Grid search ────────────────────────────────────────────────────────────────
@@ -411,16 +418,25 @@ def main() -> None:
     parser.add_argument("--top-k",       type=int,   default=50)
     parser.add_argument("--model",       type=str,   default=None,
                         help="Single pred_name for single-model mode")
+    parser.add_argument("--models", type=str, default="",
+                        help="Comma-separated pred_names; limits grid or normal mode")
     parser.add_argument("--grid-search", action="store_true",
                         help="Sweep alpha × bandwidth grid on GRID_SEARCH_MODELS")
+    parser.add_argument("--publication-split", action="store_true",
+                        help="Use the chronological train/validation/test publication split")
+    parser.add_argument("--grid-output", default=str(FOCUSED_GRID_CSV),
+                        help="Grid CSV path (focused output by default; never overwrites legacy grid)")
     args = parser.parse_args()
 
     log.info("Loading restaurant coordinates …")
     coords_pl = load_restaurant_coords()
 
     log.info("Loading interactions …")
-    from recommendation_gnn import load_interactions
-    train_df, test_df, user_enc, item_enc = load_interactions()
+    from recommendation_gnn import load_interactions, load_interaction_splits
+    if args.publication_split:
+        train_df, _, test_df, user_enc, item_enc = load_interaction_splits()
+    else:
+        train_df, test_df, user_enc, item_enc = load_interactions()
     user_dec = {v: k for k, v in user_enc.items()}
     item_dec = {v: k for k, v in item_enc.items()}
 
@@ -432,14 +448,16 @@ def main() -> None:
     PRED_DIR.mkdir(parents=True, exist_ok=True)
 
     if args.grid_search:
-        models = [MODELS_BY_NAME[n] for n in GRID_SEARCH_MODELS if n in MODELS_BY_NAME]
+        requested = [v.strip() for v in args.models.split(",") if v.strip()]
+        names = requested or GRID_SEARCH_MODELS
+        models = [MODELS_BY_NAME[n] for n in names if n in MODELS_BY_NAME]
         n_combos = len(ALPHA_GRID) * len(BANDWIDTH_GRID)
         log.info(f"\nGrid search: {len(models)} models × {n_combos} (α, bw) combos = "
                  f"{len(models) * n_combos} total evaluations")
         log.info(f"  α:         {ALPHA_GRID}")
         log.info(f"  bandwidth: {BANDWIDTH_GRID} km")
 
-        base_metrics = load_base_metrics(GRID_SEARCH_MODELS)
+        base_metrics = load_base_metrics(names)
 
         models_caches = []
         for model in models:
@@ -456,9 +474,10 @@ def main() -> None:
         log.info(f"{'='*65}")
         grid_df = run_grid_search(models_caches, ALPHA_GRID, BANDWIDTH_GRID, base_metrics)
 
-        GRID_CSV.parent.mkdir(parents=True, exist_ok=True)
-        grid_df.write_csv(GRID_CSV)
-        log.info(f"\nFull grid saved → {GRID_CSV}")
+        grid_output = Path(args.grid_output)
+        grid_output.parent.mkdir(parents=True, exist_ok=True)
+        grid_df.write_csv(grid_output)
+        log.info(f"\nFull grid saved → {grid_output}")
 
         # Best per model summary
         best_df = (
@@ -492,10 +511,10 @@ def main() -> None:
 
     else:
         # Single-model / all-models mode (backward compatible)
-        models = (
-            MODELS if args.model is None
-            else [m for m in MODELS if m["pred_name"] == args.model]
-        )
+        requested = [v.strip() for v in args.models.split(",") if v.strip()]
+        if args.model:
+            requested = [args.model]
+        models = MODELS if not requested else [m for m in MODELS if m["pred_name"] in requested]
         if not models:
             log.error(f"No model matching --model '{args.model}'")
             return

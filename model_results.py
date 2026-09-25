@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-RESULTS_FILE = Path("results/model_results.csv")
+RESULTS_FILE = Path(os.environ.get("FOODIE_MODEL_RESULTS", "results/model_results.csv"))
 
 COLUMNS = [
     "timestamp",

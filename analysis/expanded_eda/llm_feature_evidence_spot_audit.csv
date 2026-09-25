@@ -1,0 +1,10 @@
+feature,decision,known_before,known_after,evidence_share_known,evidence_share_high,evidence_share_low
+spice,retain_with_evidence_gate,7588.0,6326,0.8336847654190828,0.8387986515476555,0.29545454545454547
+outdoor,retain_with_evidence_gate,4592.0,2951,0.6426393728222997,0.7596045197740113,0.052795031055900624
+value,retain_with_evidence_gate,57619.0,46995,0.81561637654246,0.8138710101142782,0.6872586872586872
+service_sentiment,retain_with_evidence_gate,33520.0,31471,0.9388723150357995,0.9517565656179517,0.71004243281471
+service_speed,retain_with_evidence_gate,23736.0,20185,0.8503960229187731,0.8274071114662405,0.8301470588235295
+offers_vegan,replace_with_positive_evidence_only,10855.0,2675,0.11229847996315062,,
+offers_vegetarian,replace_with_positive_evidence_only,10678.0,4435,0.1136917025660236,,
+has_bar,restore_as_positive_evidence_only,,13084,,,
+byob,restore_as_positive_evidence_only,,475,,,

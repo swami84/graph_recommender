@@ -40,6 +40,13 @@ OUT_REVIEWS     = Path("data/reviews_flat.parquet")
 OUT_DISHES      = Path("data/dishes.parquet")
 OUT_REV_DISHES  = Path("data/review_dishes.parquet")
 
+
+def _write_parquet_atomic(df: pd.DataFrame, path: Path) -> None:
+    """Replace a canonical parquet only after its new version is complete."""
+    temporary = path.with_name(f".{path.name}.tmp")
+    df.to_parquet(temporary, index=False)
+    temporary.replace(path)
+
 # ── Cuisine taxonomy ───────────────────────────────────────────────────────────
 # Noise types that carry no cuisine signal — skip when walking types list
 NOISE_TYPES = {
@@ -181,7 +188,7 @@ def step_1a():
     )
 
     log.info(f"    Cuisine distribution:\n{restaurants['cuisine_category'].value_counts().to_string()}")
-    restaurants.to_parquet(OUT_RESTAURANTS, index=False)
+    _write_parquet_atomic(restaurants, OUT_RESTAURANTS)
     log.info(f"    Saved {len(restaurants):,} restaurants → {OUT_RESTAURANTS}")
 
 
@@ -266,7 +273,25 @@ def step_1b():
             })
 
     df = pd.DataFrame(records)
+    raw_rows = len(df)
+    missing_review_ids = int(df["review_id"].eq("").sum())
+    duplicate_ids = df["review_id"].ne("") & df.duplicated(
+        "review_id", keep="first"
+    )
+    duplicate_count = int(duplicate_ids.sum())
+    if duplicate_count:
+        df = df.loc[~duplicate_ids].copy()
+    log.info(
+        f"    Review-ID audit: raw={raw_rows:,}, "
+        f"duplicate_nonempty={duplicate_count:,}, "
+        f"missing={missing_review_ids:,}"
+    )
     df = df[df["reviewer_name"] != ""].reset_index(drop=True)
+    log.info(
+        f"    Identity audit: {df['contributor_id'].fillna('').ne('').sum():,} "
+        f"rows with contributor IDs; "
+        f"{df['contributor_id'].fillna('').eq('').sum():,} without"
+    )
 
     # Join demographics if available
     if NAME_PREDS.exists():
@@ -277,7 +302,7 @@ def step_1b():
         df = df.merge(preds, on="reviewer_name", how="left")
         log.info(f"    Demographics joined for {df['predicted_race'].notna().sum():,} reviews")
 
-    df.to_parquet(OUT_REVIEWS, index=False)
+    _write_parquet_atomic(df, OUT_REVIEWS)
     log.info(f"    Saved {len(df):,} reviews → {OUT_REVIEWS}")
     return df
 
@@ -333,8 +358,8 @@ def step_1c(reviews_df: pd.DataFrame | None = None):
         ["review_id", "dish_name", "place_id"]
     ).reset_index(drop=True)
 
-    dishes_df.to_parquet(OUT_DISHES, index=False)
-    rev_dishes_df.to_parquet(OUT_REV_DISHES, index=False)
+    _write_parquet_atomic(dishes_df, OUT_DISHES)
+    _write_parquet_atomic(rev_dishes_df, OUT_REV_DISHES)
     log.info(f"    Saved {len(dishes_df):,} unique dishes → {OUT_DISHES}")
     log.info(f"    Saved {len(rev_dishes_df):,} review-dish edges → {OUT_REV_DISHES}")
 

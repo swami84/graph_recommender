@@ -1,0 +1,29 @@
+cuisine,predicted_gender,mean_rating,reviews
+Café & Bakery,female,4.045544970334805,171413
+Chinese,female,3.9837743216858548,74265
+Sandwiches & Deli,female,3.9909862142099684,71668
+Asian,female,4.345818736181082,99049
+Sandwiches & Deli,male,3.9950644686859937,110829
+Japanese & Sushi,male,4.335761271562068,106263
+Seafood,male,4.280488092709292,42369
+Café & Bakery,male,3.9792079421138773,185744
+Italian & Pizza,female,4.129600498057243,179899
+Fast Food & Burgers,female,3.524435284755239,147021
+Japanese & Sushi,female,4.3504365519394534,92887
+Mexican & Latin,female,4.150585900386377,236815
+BBQ & Steakhouse,female,4.253419017614206,55864
+Mediterranean & Middle Eastern,male,4.379412362232719,78756
+Asian,male,4.3233927493240225,114279
+Bar & Pub,female,4.327517733435555,144783
+Mexican & Latin,male,4.151922773122519,297513
+Italian & Pizza,male,4.07195450869475,236177
+American & Comfort,female,4.101665684709959,256291
+Indian & South Asian,male,4.293370426749252,38102
+BBQ & Steakhouse,male,4.231116748375328,70168
+Chinese,male,3.9839912116978273,93761
+Seafood,female,4.2435845697329375,42125
+Bar & Pub,male,4.313461278185312,184715
+Indian & South Asian,female,4.441883836983643,28856
+American & Comfort,male,4.059394840019372,301474
+Fast Food & Burgers,male,3.5367834459780627,220901
+Mediterranean & Middle Eastern,female,4.464697708986331,61894

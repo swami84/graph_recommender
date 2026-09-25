@@ -1,0 +1,30 @@
+{
+  "model": "KGAT-SAL",
+  "condition": "full_llm",
+  "selection_metric": "mean validation NDCG@10 across seeds 42,43,44",
+  "alpha": 0.6,
+  "bandwidth_km": 2.5,
+  "candidate_depth": 1600,
+  "val_hit_at_10_mean": 0.060619403157190686,
+  "val_hit_at_10_std": 0.0002495761730424617,
+  "val_ndcg_at_10_mean": 0.02975883238867845,
+  "val_ndcg_at_10_std": 0.00018815706271971136,
+  "search_space": {
+    "alphas": [
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8
+    ],
+    "bandwidths_km": [
+      1.0,
+      2.5,
+      5.0
+    ],
+    "candidate_depths": [
+      1600,
+      3200
+    ]
+  }
+}

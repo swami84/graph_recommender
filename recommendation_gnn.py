@@ -34,6 +34,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmResta
 from torch.utils.checkpoint import checkpoint as grad_ckpt
 
 from model_results import save_result
+from publication_results import condition_from_skip, save_publication_result
 
 
 class _SparseMmChunkedBF16(torch.autograd.Function):
@@ -134,23 +135,25 @@ if not log.handlers:
 
 REVIEWS_FLAT      = Path(os.environ.get("FOODIE_REVIEWS_FLAT", "data/reviews_flat.parquet"))
 RESTAURANTS_ENR   = Path(os.environ.get("FOODIE_RESTAURANTS_ENR", "data/restaurants_enriched.parquet"))
-NLP_FEATURES      = Path("data/restaurant_nlp_features.parquet")
 DISH_PROFILES     = Path("data/dish_profiles.parquet")
 DISH_SIMILARITIES = Path("data/dish_similarities.parquet")
 USER_EXT_FEATURES  = Path("data/user_extended_features.parquet")
-USER_PREF_FEATURES = Path("data/user_preference_features.parquet")
+USER_LLM_FEATURES  = Path("data/user_llm_features.parquet")
+USER_LLM_EMBEDDING = Path("data/user_llm_embeddings.parquet")
 ITEM_EXT_FEATURES   = Path("data/item_extended_features.parquet")
 RESTAURANT_LLM_FEAT = Path("data/restaurant_llm_features.parquet")
-MODEL_DIR         = Path("models")
+ITEM_LLM_EMBEDDING  = Path("data/restaurant_llm_embeddings.parquet")
+MODEL_DIR         = Path(os.environ.get("FOODIE_MODEL_DIR", "models"))
 MODEL_FILE        = MODEL_DIR / "lightgcn_gnn.pt"
 ENCODERS_FILE     = MODEL_DIR / "gnn_encoders.pkl"
-EMB_DIR           = Path("data/embeddings")
+EMB_DIR           = Path(os.environ.get("FOODIE_EMBEDDING_DIR", "data/embeddings"))
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-USER_PREBUILT  = Path("data/user_features_prebuilt.parquet")
-ITEM_PREBUILT  = Path("data/item_features_prebuilt.parquet")
-FEATURE_GROUPS = Path("data/feature_groups.json")
+FEATURE_DIR = Path(os.environ.get("FOODIE_FEATURE_DIR", "data"))
+USER_PREBUILT  = FEATURE_DIR / "user_features_prebuilt.parquet"
+ITEM_PREBUILT  = FEATURE_DIR / "item_features_prebuilt.parquet"
+FEATURE_GROUPS = FEATURE_DIR / "feature_groups.json"
 
 
 def _align_prebuilt(feat_df: pd.DataFrame, id_col: str, enc: dict,
@@ -271,16 +274,27 @@ def build_user_features(df: pd.DataFrame, user_enc: dict,
         log.info(f"  Extended user features joined: +{len(ext_cols)} dims "
                  f"({len(feat_cols)} total)")
 
-    # ── LLM preference features (mirrors restaurant NLP attributes) ────────
-    if USER_PREF_FEATURES.exists():
-        pref = pd.read_parquet(USER_PREF_FEATURES)
-        pref_cols = [c for c in pref.columns if c != "contributor_id"]
-        feat_df = feat_df.merge(pref, on="contributor_id", how="left")
-        feat_df[pref_cols] = feat_df[pref_cols].fillna(0.5)
-        feat_cols = feat_cols + pref_cols
+    # ── Leakage-safe consolidated LLM features ────────────────────────────
+    if USER_LLM_FEATURES.exists():
+        pref = pd.read_parquet(USER_LLM_FEATURES)
+        pref_cols = [c for c in pref.columns if c != "contributor_id"
+                     and pd.api.types.is_numeric_dtype(pref[c])
+                     and c != "source_review_count"]
+        feat_df = feat_df.merge(pref[["contributor_id"] + pref_cols], on="contributor_id", how="left")
+        for col in pref_cols:
+            default = 0.0 if any(x in col for x in ("_known", "_confidence", "cuisine_", "meal_")) else 0.5
+            feat_df[col] = feat_df[col].fillna(default)
+        feat_cols += pref_cols
         coverage = feat_df["contributor_id"].isin(pref["contributor_id"]).mean()
-        log.info(f"  User preference features joined: +{len(pref_cols)} dims "
+        log.info(f"  User LLM features joined: +{len(pref_cols)} dims "
                  f"({len(feat_cols)} total, coverage={coverage:.1%})")
+
+    if USER_LLM_EMBEDDING.exists():
+        emb = pd.read_parquet(USER_LLM_EMBEDDING)
+        emb_cols = [c for c in emb.columns if c.startswith("llm_emb_")]
+        feat_df = feat_df.merge(emb[["contributor_id"] + emb_cols], on="contributor_id", how="left")
+        feat_df[emb_cols] = feat_df[emb_cols].fillna(0.0)
+        feat_cols += emb_cols
 
     feat      = np.zeros((len(user_enc), len(feat_cols)), dtype=np.float32)
     for _, row in feat_df.iterrows():
@@ -395,20 +409,8 @@ def build_item_features(item_enc: dict, llm_feat_mode: str = "fast", use_nlp_fea
         review_cols = []
 
     cuisine_d = pd.get_dummies(rest["cuisine_category"], prefix="cuisine", dtype=float)
-    # ── LLM-extracted NLP attributes ──────────────────────────────────────────
-    from build_nlp_features import ATTRIBUTES as NLP_ATTRS
-    nlp_cols: list[str] = []
-    if use_nlp_feat and NLP_FEATURES.exists():
-        nlp = pd.read_parquet(NLP_FEATURES)
-        rest = rest.merge(nlp, on="place_id", how="left")
-        for col in NLP_ATTRS:
-            rest[col] = rest[col].fillna(0.5)
-        nlp_cols = NLP_ATTRS
-        log.info(f"  NLP features joined: {len(NLP_ATTRS)} attributes for "
-                 f"{nlp['place_id'].nunique():,} restaurants")
-
     numeric_cols = ["price_norm", "rating_norm", "log_rating_count",
-                    "lat_norm", "lng_norm"] + review_cols + nlp_cols
+                    "lat_norm", "lng_norm"] + review_cols
 
     # ── Extended item features ─────────────────────────────────────────────
     if ITEM_EXT_FEATURES.exists():
@@ -423,15 +425,22 @@ def build_item_features(item_enc: dict, llm_feat_mode: str = "fast", use_nlp_fea
     # ── Restaurant LLM/fast features ──────────────────────────────────────
     if RESTAURANT_LLM_FEAT.exists() and llm_feat_mode != "none":
         llm_ext   = pd.read_parquet(RESTAURANT_LLM_FEAT)
-        if llm_feat_mode == "fast":
-            load_cols = [c for c in llm_ext.columns if c != "place_id" and not c.startswith("llm_")]
-        else:  # "full"
-            load_cols = [c for c in llm_ext.columns if c != "place_id"]
+        load_cols = [c for c in llm_ext.columns if c != "place_id"
+                     and pd.api.types.is_numeric_dtype(llm_ext[c])
+                     and c != "source_review_count"]
         rest = rest.merge(llm_ext[["place_id"] + load_cols], on="place_id", how="left")
         for col in load_cols:
-            rest[col] = rest[col].fillna(0.0)
+            default = 0.0 if any(x in col for x in ("_known", "_confidence", "cuisine_", "meal_")) else 0.5
+            rest[col] = rest[col].fillna(default)
         numeric_cols = numeric_cols + load_cols
         log.info(f"  Restaurant features joined ({llm_feat_mode}): +{len(load_cols)} dims")
+
+    if llm_feat_mode == "full" and ITEM_LLM_EMBEDDING.exists():
+        emb = pd.read_parquet(ITEM_LLM_EMBEDDING)
+        emb_cols = [c for c in emb.columns if c.startswith("llm_emb_")]
+        rest = rest.merge(emb[["place_id"] + emb_cols], on="place_id", how="left")
+        rest[emb_cols] = rest[emb_cols].fillna(0.0)
+        numeric_cols += emb_cols
 
     feat_df = pd.concat([rest[["place_id"] + numeric_cols], cuisine_d], axis=1)
 
@@ -845,36 +854,46 @@ def _original_item_ids() -> set:
     return set(rest.loc[rest["cbg"].isin(orig_cbgs), "place_id"])
 
 
+def _load_interaction_frame(min_reviews: int) -> tuple[pd.DataFrame, dict, dict]:
+    """Load, deduplicate, filter, and encode the implicit-feedback table."""
+    from build_llm_features_ollama import assign_interaction_splits
+    df = assign_interaction_splits(pd.read_parquet(REVIEWS_FLAT), min_reviews)
+
+    user_ids = sorted(df["contributor_id"].unique())
+    item_ids = sorted(df["place_id"].unique())
+    user_enc = {u: i for i, u in enumerate(user_ids)}
+    item_enc = {it: i for i, it in enumerate(item_ids)}
+    df["user_idx"] = df["contributor_id"].map(user_enc)
+    df["item_idx"] = df["place_id"].map(item_enc)
+    return df, user_enc, item_enc
+
+
+def load_interaction_splits(min_reviews: int = 4):
+    """Return chronological train/validation/test splits.
+
+    Each eligible user contributes their newest unique restaurant to test and
+    their second-newest to validation.  All older interactions form training.
+    Four unique restaurants are required so every user retains at least two
+    training interactions.
+    """
+    df, user_enc, item_enc = _load_interaction_frame(min_reviews)
+    train_df = df[df["split"].eq("train")].copy()
+    val_df = df[df["split"].eq("validation")].copy()
+    test_df = df[df["split"].eq("test")].copy()
+    log.info(
+        f"Train {len(train_df):,} | Validation {len(val_df):,} | "
+        f"Test {len(test_df):,} | Users {len(user_enc):,} | Items {len(item_enc):,}"
+    )
+    return train_df, val_df, test_df, user_enc, item_enc
+
+
 def load_interactions(min_reviews: int = 3):
     # When FOODIE_ORIGINAL_TEST=1 the test split is restricted to restaurants
     # from the original top-2000 CBGs, so models trained on the expanded dataset
     # are evaluated against the same population as pre-expansion runs.
     original_test = os.environ.get("FOODIE_ORIGINAL_TEST", "0") == "1"
 
-    df = pd.read_parquet(REVIEWS_FLAT)
-    df = df[
-        df["contributor_id"].notna() & (df["contributor_id"] != "") &
-        df["place_id"].notna() & df["rating"].notna()
-    ].copy()
-
-    # Deduplicate: keep one row per (user, restaurant) — most recent scrape capture.
-    # The raw parquet contains the same review captured at multiple scrape dates,
-    # producing duplicate (contributor_id, place_id) pairs with different
-    # timestamp_days_ago. Without this, every test item lands in the exclude set.
-    df = df.sort_values("timestamp_days_ago", ascending=True, na_position="last")
-    df = df.drop_duplicates(subset=["contributor_id", "place_id"], keep="first")
-
-    # min_reviews now means min UNIQUE restaurants visited
-    counts = df["contributor_id"].value_counts()
-    df = df[df["contributor_id"].isin(counts[counts >= min_reviews].index)].copy()
-
-    user_ids = sorted(df["contributor_id"].unique())
-    item_ids = sorted(df["place_id"].unique())
-    user_enc = {u: i for i, u in enumerate(user_ids)}
-    item_enc = {it: i for i, it in enumerate(item_ids)}
-
-    df["user_idx"] = df["contributor_id"].map(user_enc)
-    df["item_idx"] = df["place_id"].map(item_enc)
+    df, user_enc, item_enc = _load_interaction_frame(min_reviews)
 
     # Build test split: most recent interaction per user.
     # With original_test=True, only interactions with original-CBG restaurants
@@ -900,18 +919,18 @@ def load_interactions(min_reviews: int = 3):
 # ── Negative sampling ──────────────────────────────────────────────────────────
 def sample_negatives(train_df: pd.DataFrame, n_items: int,
                      hard_ratio: float = 0.5,
-                     emb_pool: "np.ndarray | None" = None) -> pd.DataFrame:
+                     emb_pool: "np.ndarray | None" = None,
+                     rng: "np.random.Generator | None" = None) -> pd.DataFrame:
     """
     Sample one negative per training pair.
     hard_ratio fraction are "hard":
       - if emb_pool provided: item most similar in embedding space to the positive
       - otherwise: top-quartile popular item (original behaviour)
     """
-    rng      = np.random.default_rng()          # fresh seed each call
-    user_pos = train_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    rng      = rng if rng is not None else np.random.default_rng()
     n        = len(train_df)
-    uids     = train_df["user_idx"].values
-    pos_arr  = train_df["item_idx"].values
+    uids     = train_df["user_idx"].to_numpy(dtype=np.int64, copy=False)
+    pos_arr  = train_df["item_idx"].to_numpy(dtype=np.int64, copy=False)
 
     if emb_pool is not None:
         k          = emb_pool.shape[1]
@@ -926,10 +945,17 @@ def sample_negatives(train_df: pd.DataFrame, n_items: int,
     rand_negs = rng.integers(0, n_items, size=n)
     negs      = np.where(rng.random(n) < hard_ratio, hard_negs, rand_negs)
 
-    for i in range(n):
-        pos_set = user_pos[uids[i]]
-        while negs[i] in pos_set:
-            negs[i] = rng.integers(0, n_items)
+    # Reject observed user-item pairs in vectorized integer-key space. The old
+    # per-row Python set loop performed the identical rejection but dominated
+    # epochs at ~772k interactions.
+    positive_keys = uids * np.int64(n_items) + pos_arr
+    invalid = np.isin(uids * np.int64(n_items) + negs, positive_keys)
+    while invalid.any():
+        negs[invalid] = rng.integers(0, n_items, size=int(invalid.sum()))
+        invalid_idx = np.flatnonzero(invalid)
+        invalid[invalid_idx] = np.isin(
+            uids[invalid_idx] * np.int64(n_items) + negs[invalid_idx], positive_keys
+        )
 
     return train_df.assign(neg_idx=negs)
 
@@ -1001,6 +1027,41 @@ def _eval_recall_at_k(model: "LightGCN", adj: torch.Tensor,
     return float(np.mean(rec_scores)) if rec_scores else 0.0
 
 
+def _eval_ranking_at_k(model: "LightGCN", adj: torch.Tensor,
+                       eval_df: pd.DataFrame, excl_df: pd.DataFrame,
+                       n_items: int, k: int = 10,
+                       adj_dr=None, adj_dd=None) -> dict[str, float]:
+    """Full-catalog Hit/Recall and NDCG; NDCG is the checkpoint objective."""
+    model.eval()
+    with torch.no_grad():
+        if adj_dr is not None and adj_dd is not None:
+            u_emb, i_emb = model.get_embeddings(adj, adj_dr, adj_dd)
+        else:
+            u_emb, i_emb = model.get_embeddings(adj)
+    excl_map = excl_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    rel_map = eval_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    users = np.asarray(list(rel_map), dtype=np.int64)
+    recalls, ndcgs = [], []
+    for start in range(0, len(users), 4096):
+        chunk = users[start:start + 4096]
+        scores = (u_emb[torch.as_tensor(chunk, device=u_emb.device)] @ i_emb.T).float().cpu().numpy()
+        for row_idx, uid in enumerate(chunk):
+            relevant = rel_map[int(uid)]
+            for item in excl_map.get(int(uid), set()):
+                scores[row_idx, item] = -np.inf
+            # Exact top-k without sorting the other ~61k candidates. This is
+            # rank-equivalent to a full argsort and drastically reduces CPU time.
+            top = np.argpartition(-scores[row_idx], k - 1)[:k]
+            ranked = top[np.argsort(-scores[row_idx, top])].tolist()
+            recalls.append(len(relevant.intersection(ranked)) / len(relevant))
+            ndcgs.append(ndcg_at_k(relevant, ranked, k))
+    return {
+        "hit": float(np.mean([x > 0 for x in recalls])) if recalls else 0.0,
+        "recall": float(np.mean(recalls)) if recalls else 0.0,
+        "ndcg": float(np.mean(ndcgs)) if ndcgs else 0.0,
+    }
+
+
 # ── Train ──────────────────────────────────────────────────────────────────────
 def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
           lr: float = 1e-3, batch_size: int = 2048, save: bool = True,
@@ -1016,8 +1077,20 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
           use_nlp_feat: bool = True,
           eval_every: int = 50,
           prebuilt_features: bool = False,
-          skip_feature_groups: list[str] | None = None):
-    train_df, test_df, user_enc, item_enc = load_interactions()
+          skip_feature_groups: list[str] | None = None,
+          publication_split: bool = False,
+          seed: int = 42):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    rng = np.random.default_rng(seed)
+
+    if publication_split:
+        train_df, val_df, test_df, user_enc, item_enc = load_interaction_splits()
+    else:
+        train_df, test_df, user_enc, item_enc = load_interactions()
+        val_df = test_df
     n_users, n_items = len(user_enc), len(item_enc)
 
     # ── Side features ───────────────────────────────────────────────────────────
@@ -1088,10 +1161,11 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
         )
 
     emb_pool       = None   # embedding-space hard neg pool; built after first hard_neg_refresh epochs
-    train_with_neg = sample_negatives(train_df, n_items, emb_pool=emb_pool)
+    train_with_neg = sample_negatives(train_df, n_items, emb_pool=emb_pool, rng=rng)
     users_t, pos_items, neg_items = _make_tensors(train_with_neg)
 
-    best_recall     = 0.0
+    best_ndcg       = -1.0
+    best_val_metrics = None
     best_state_dict = None
 
     for epoch in range(1, epochs + 1):
@@ -1114,7 +1188,7 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
             do_resample = True
 
         if do_resample:
-            train_with_neg = sample_negatives(train_df, n_items, emb_pool=emb_pool)
+            train_with_neg = sample_negatives(train_df, n_items, emb_pool=emb_pool, rng=rng)
             users_t, pos_items, neg_items = _make_tensors(train_with_neg)
 
         optimizer.zero_grad()
@@ -1170,28 +1244,32 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
 
         # ── Periodic validation + best-checkpoint tracking ───────────────────
         if eval_every > 0 and epoch % eval_every == 0:
-            val_recall = _eval_recall_at_k(
-                model, adj, test_df, train_df, n_items, k=10,
+            val_metrics = _eval_ranking_at_k(
+                model, adj, val_df, train_df, n_items, k=10,
                 adj_dr=adj_dr if use_dish_graph else None,
                 adj_dd=adj_dd if use_dish_graph else None,
             )
             model.train()
-            if val_recall > best_recall:
-                best_recall     = val_recall
+            if val_metrics["ndcg"] > best_ndcg:
+                best_ndcg       = val_metrics["ndcg"]
+                best_val_metrics = val_metrics
                 best_state_dict = copy.deepcopy(model.state_dict())
-                log.info(f"  [Epoch {epoch}] val Recall@10={val_recall:.4f}  *** new best ***")
+                log.info(f"  [Epoch {epoch}] val Hit@10={val_metrics['hit']:.4f} "
+                         f"NDCG@10={val_metrics['ndcg']:.4f}  *** new best ***")
             else:
-                log.info(f"  [Epoch {epoch}] val Recall@10={val_recall:.4f}  (best={best_recall:.4f})")
+                log.info(f"  [Epoch {epoch}] val Hit@10={val_metrics['hit']:.4f} "
+                         f"NDCG@10={val_metrics['ndcg']:.4f} (best={best_ndcg:.4f})")
 
     # ── Load best checkpoint before final evaluation ─────────────────────────
     if best_state_dict is not None:
         model.load_state_dict(best_state_dict)
-        log.info(f"Loaded best checkpoint (val Recall@10={best_recall:.4f})")
+        log.info(f"Loaded best checkpoint (val NDCG@10={best_ndcg:.4f})")
 
     # ── Evaluate ────────────────────────────────────────────────────────────────
     model.eval()
     K = 10
-    user_pos_excl = train_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    seen_df = pd.concat([train_df, val_df], ignore_index=True) if publication_split else train_df
+    user_pos_excl = seen_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
 
     log.info("Computing embeddings for evaluation…")
     if use_dish_graph:
@@ -1213,6 +1291,7 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
              f"{n_test_in_train:,} / {len(test_relevant):,}")
 
     ndcg_scores, prec_scores, rec_scores = [], [], []
+    prediction_records = []
     total_hits = 0
 
     log.info(f"Evaluating {len(test_users):,} test users in chunks of {CHUNK}…")
@@ -1245,6 +1324,8 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
             total_hits += hits
             prec_scores.append(hits / K)
             rec_scores.append(hits / len(relevant))
+            true_item = next(iter(relevant)) if len(relevant) == 1 else None
+            prediction_records.append((int(user_idx_val), true_item, ranked))
 
     log.info(f"  Users evaluated: {len(prec_scores):,} | Total hits@10: {total_hits:,}")
 
@@ -1255,6 +1336,7 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
     print("\n=== LightGCN GNN Results ===")
     print(f"  Precision@{K}: {precision_val:.4f}")
     print(f"  Recall@{K}:    {recall_val:.4f}")
+    print(f"  Hit@{K}:       {recall_val:.4f}  (one held-out item/user)")
     print(f"  NDCG@{K}:      {ndcg_val:.4f}")
     print()
 
@@ -1265,14 +1347,30 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
         precision=precision_val, recall=recall_val, ndcg=ndcg_val,
         epochs=epochs, emb_dim=emb_dim, n_layers=n_layers,
         skip_groups=skip_str,
+        notes=(f"seed={seed}; checkpoint=val_ndcg@10; "
+               f"val_hit@10={best_val_metrics['hit']:.6f}; "
+               f"val_ndcg@10={best_val_metrics['ndcg']:.6f}"
+               if best_val_metrics else f"seed={seed}; checkpoint=final"),
     )
+    if publication_split:
+        save_publication_result(
+            "LightGCN", condition_from_skip(skip_str), seed,
+            best_val_metrics,
+            {"hit": float(recall_val), "ndcg": float(ndcg_val)}, epochs, emb_dim,
+        )
 
     if save:
         MODEL_DIR.mkdir(exist_ok=True)
         EMB_DIR.mkdir(exist_ok=True)
 
-        torch.save(model.state_dict(), MODEL_FILE)
-        with open(ENCODERS_FILE, "wb") as f:
+        # Seed-specific publication artifacts avoid overwriting replicate runs.
+        legacy_outputs = not publication_split
+        if legacy_outputs:
+            torch.save(model.state_dict(), MODEL_FILE)
+        condition_tag = (f"skip_{skip_str.replace(',', '_')}" if skip_str else "all")
+        encoder_path = (ENCODERS_FILE if legacy_outputs else
+                        MODEL_DIR / f"gnn_encoders_{condition_tag}_seed{seed}.pkl")
+        with open(encoder_path, "wb") as f:
             pickle.dump({
                 "user_enc":       user_enc,
                 "item_enc":       item_enc,
@@ -1292,10 +1390,14 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
                 "edge_dropout":   edge_dropout,
             }, f)
 
-        torch.save(u_emb_all.cpu(), EMB_DIR / "reviewer_embeddings.pt")
-        torch.save(i_emb_all.cpu(), EMB_DIR / "restaurant_embeddings.pt")
+        if legacy_outputs:
+            torch.save(u_emb_all.cpu(), EMB_DIR / "reviewer_embeddings.pt")
+            torch.save(i_emb_all.cpu(), EMB_DIR / "restaurant_embeddings.pt")
 
         file_tag   = f"{n_layers}l_skip_{skip_str.replace(',', '_')}" if skip_str else f"{n_layers}l_all"
+        if publication_split:
+            file_tag += "_pubsplit"
+        file_tag += f"_seed{seed}"
         model_path = MODEL_DIR / f"lightgcn_{file_tag}.pt"
         torch.save(model.state_dict(), model_path)
         user_dec_map = {v: k for k, v in user_enc.items()}
@@ -1304,7 +1406,23 @@ def train(epochs: int = 50, emb_dim: int = 64, n_layers: int = 3,
                    EMB_DIR / f"lightgcn_{file_tag}_user_embeddings.pt")
         torch.save({"embeddings": i_emb_all.cpu(), "id_map": item_dec_map},
                    EMB_DIR / f"lightgcn_{file_tag}_item_embeddings.pt")
-        log.info(f"Model → {MODEL_FILE} ({model_path}) | Embeddings → {EMB_DIR}/")
+        pred_rows = []
+        for uid, true_item, ranked in prediction_records:
+            rank = ranked.index(true_item) + 1 if true_item in ranked else None
+            pred_rows.append({
+                "user_idx": uid, "true_item_idx": true_item,
+                "top10_item_idxs": ranked,
+                "contributor_id": user_dec_map[uid],
+                "true_place_id": item_dec_map.get(true_item),
+                "top10_place_ids": [item_dec_map[x] for x in ranked],
+                "rank": rank,
+            })
+        pred_dir = Path(os.environ.get("FOODIE_PREDICTION_DIR", "data/predictions"))
+        pred_dir.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(pred_rows).to_parquet(
+            pred_dir / f"lightgcn_{file_tag}_predictions.parquet", index=False
+        )
+        log.info(f"Model → {model_path} | Embeddings → {EMB_DIR}/")
 
     return model, adj, user_enc, item_enc
 
@@ -1376,6 +1494,8 @@ def main():
     parser = argparse.ArgumentParser(description="LightGCN GNN recommendation")
     parser.add_argument("--epochs",         type=int, default=50)
     parser.add_argument("--emb-dim",        type=int, default=64)
+    parser.add_argument("--batch-size",     type=int, default=2048,
+                        help="BPR mini-batch size (default 2048)")
     parser.add_argument("--layers",         type=int, default=3)
     parser.add_argument("--recommend",      metavar="CONTRIBUTOR_ID")
     parser.add_argument("--no-save",        action="store_true")
@@ -1417,6 +1537,11 @@ def main():
                              "(user groups: base,extended,pref; "
                              "item groups: base,nlp,extended,llm). "
                              "E.g. --skip-feature-groups nlp,llm")
+    parser.add_argument("--publication-split", action="store_true",
+                        help="Use chronological train/validation/test splits (requires >=4 "
+                             "unique restaurants per user) and select checkpoints on validation")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for initialization and negative sampling")
     args = parser.parse_args()
 
     skip_groups = [g.strip() for g in args.skip_feature_groups.split(",") if g.strip()] \
@@ -1429,6 +1554,7 @@ def main():
             print(f"  {i:2}. {r['name']} ({r['cuisine']})")
     else:
         train(epochs=args.epochs, emb_dim=args.emb_dim, n_layers=args.layers,
+              batch_size=args.batch_size,
               save=not args.no_save, use_dish_graph=args.use_dish_graph,
               use_fp16=args.fp16, grad_checkpoint=args.grad_checkpoint,
               edge_dropout=args.edge_dropout, use_film=args.film,
@@ -1438,7 +1564,9 @@ def main():
               use_nlp_feat=not args.no_nlp_feat,
               eval_every=args.eval_every,
               prebuilt_features=args.prebuilt_features,
-              skip_feature_groups=skip_groups)
+              skip_feature_groups=skip_groups,
+              publication_split=args.publication_split,
+              seed=args.seed)
 
 
 if __name__ == "__main__":

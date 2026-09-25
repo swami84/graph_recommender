@@ -1,0 +1,16 @@
+[Unit]
+Description=Capped CBG Places expansion followed by guarded restaurant review scraping
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
+ExecStart=/home/swami/venv/dev_env/bin/python /home/swami/Work/Projects/foodie_revamp/run_places_then_reviews.py --cbg-file data/next_collection_queue_2026-09.csv --budget-id density-tourism-county-gaps-2026-09-v1 --billing-month 2026-09 --max-monthly-api-calls 21709 --max-run-cost-usd 80.00 --review-concurrency 12 --review-workers 4 --starts-per-minute 24
+Restart=on-failure
+RestartSec=60
+TimeoutStopSec=30
+KillSignal=SIGINT
+
+[Install]
+WantedBy=default.target

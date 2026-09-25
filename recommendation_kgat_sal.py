@@ -63,12 +63,13 @@ from torch.utils.checkpoint import checkpoint as grad_ckpt
 from transformers import Adafactor
 
 from model_results import save_result
+from publication_results import condition_from_skip, save_publication_result
 from recommendation_gnn import (
     _sparse_mm_f32, dropout_adj,
-    build_adj, load_interactions,
+    build_adj, load_interactions, load_interaction_splits,
     build_user_features, build_item_features,
     sample_negatives, build_hard_neg_pool,
-    _eval_recall_at_k, ndcg_at_k, _is_main_rank, _sync_grads, init_distributed, DEVICE,
+    _eval_ranking_at_k, ndcg_at_k, _is_main_rank, _sync_grads, init_distributed, DEVICE,
 )
 from recommendation_kgat import build_kg, N_RELATIONS
 
@@ -85,10 +86,12 @@ if not log.handlers:
     log.addHandler(_lh)
     log.propagate = False
 
-MODEL_OUT      = Path("models/kgat_sal.pt")
-EMB_OUT        = Path("data/embeddings")
-PRED_DIR       = Path("data/predictions")
-CHECKPOINT_CSV = Path("results/training_checkpoints.csv")
+MODEL_OUT      = Path(os.environ.get("FOODIE_MODEL_DIR", "models")) / "kgat_sal.pt"
+EMB_OUT        = Path(os.environ.get("FOODIE_EMBEDDING_DIR", "data/embeddings"))
+PRED_DIR       = Path(os.environ.get("FOODIE_PREDICTION_DIR", "data/predictions"))
+CHECKPOINT_CSV = Path(os.environ.get(
+    "FOODIE_TRAINING_CHECKPOINTS", "results/publication_training_checkpoints.csv"
+))
 
 CBG_SPATIAL_K  = 5   # inherited from KGAT config
 TOP_DISH_N     = 200
@@ -497,15 +500,19 @@ class KGAT_SAL(nn.Module):
 
 # ── Checkpoint logging (mirrors KGAT) ──────────────────────────────────────────
 
-def _log_checkpoint(run_id: str, variant: str, epoch: int, recall: float) -> None:
+def _log_checkpoint(run_id: str, variant: str, epoch: int,
+                    metrics: dict[str, float], seed: int) -> None:
     CHECKPOINT_CSV.parent.mkdir(exist_ok=True)
     write_header = not CHECKPOINT_CSV.exists()
     with open(CHECKPOINT_CSV, "a", newline="") as f:
         w = csv.writer(f)
         if write_header:
-            w.writerow(["timestamp", "run_id", "model", "variant", "epoch", "recall_at_10"])
+            w.writerow(["timestamp", "run_id", "model", "variant", "seed", "epoch",
+                        "hit_at_10", "recall_at_10", "ndcg_at_10"])
         w.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    run_id, "KGAT-SAL", variant, epoch, f"{recall:.4f}"])
+                    run_id, "KGAT-SAL", variant, seed, epoch,
+                    f"{metrics['hit']:.6f}", f"{metrics['recall']:.6f}",
+                    f"{metrics['ndcg']:.6f}"])
 
 
 # ── Prediction saver ────────────────────────────────────────────────────────────
@@ -513,7 +520,7 @@ def _log_checkpoint(run_id: str, variant: str, epoch: int, recall: float) -> Non
 def save_predictions(
     u_emb:    torch.Tensor,
     i_emb:    torch.Tensor,
-    train_df: pd.DataFrame,
+    exclude_df: pd.DataFrame,
     test_df:  pd.DataFrame,
     user_enc: dict,
     item_enc: dict,
@@ -522,7 +529,7 @@ def save_predictions(
     """Generate top-10 predictions for all test users and write to parquet."""
     user_id_map = {v: k for k, v in user_enc.items()}
     item_id_map = {v: k for k, v in item_enc.items()}
-    train_sets  = train_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    train_sets  = exclude_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
     test_users  = test_df["user_idx"].values
     test_items  = test_df["item_idx"].values
     u_cpu       = u_emb.cpu().float()
@@ -537,7 +544,8 @@ def save_predictions(
         for k, (ui, ii) in enumerate(zip(u_idx, i_idx)):
             for excl in train_sets.get(int(ui), set()):
                 scores[k, excl] = -np.inf
-            top10 = np.argsort(-scores[k])[:10].tolist()
+            top_idx = np.argpartition(-scores[k], 9)[:10]
+            top10 = top_idx[np.argsort(-scores[k, top_idx])].tolist()
             rank  = top10.index(int(ii)) + 1 if int(ii) in top10 else None
             records.append({
                 "user_idx":        int(ui),
@@ -581,12 +589,23 @@ def train(
     prebuilt_features: bool = False,
     skip_feature_groups: list[str] | None = None,
     use_spatial_cbg: bool = True,
+    publication_split: bool = False,
+    seed: int = 42,
 ) -> float:
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    rng = np.random.default_rng(seed)
     run_id   = datetime.now().strftime("%Y%m%d_%H%M%S")
     skip_str = ",".join(skip_feature_groups) if skip_feature_groups else ""
     variant  = f"{'skip ' + skip_str if skip_str else 'all features'} T={n_periods}"
 
-    train_df, test_df, user_enc, item_enc = load_interactions()
+    if publication_split:
+        train_df, val_df, test_df, user_enc, item_enc = load_interaction_splits()
+    else:
+        train_df, test_df, user_enc, item_enc = load_interactions()
+        val_df = test_df
     n_users, n_items = len(user_enc), len(item_enc)
 
     user_feat = build_user_features(train_df, user_enc,
@@ -602,7 +621,10 @@ def train(
     period_adjs, period_dfs = build_period_adjs(train_df, n_users, n_items, n_periods)
 
     log.info("Building knowledge graph…")
-    kg_heads, kg_rels, kg_tails, n_kg_ents = build_kg(item_enc, use_spatial_cbg=use_spatial_cbg)
+    use_dish_kg = "dish_llm" not in (skip_feature_groups or [])
+    kg_heads, kg_rels, kg_tails, n_kg_ents = build_kg(
+        item_enc, use_spatial_cbg=use_spatial_cbg, use_dish_kg=use_dish_kg
+    )
 
     model = KGAT_SAL(
         n_users=n_users,
@@ -645,7 +667,8 @@ def train(
     all_pos_t   = torch.LongTensor(train_df["item_idx"].values)
     n_train     = len(train_df)
     neg_pool    = None
-    best_recall = 0.0
+    best_ndcg = -1.0
+    best_val_metrics = None
     best_state  = None
 
     for epoch in range(1, epochs + 1):
@@ -660,7 +683,7 @@ def train(
                 log.info("  [Epoch %d] Hard neg pool refreshed", epoch)
 
         raw_model.train()
-        neg_df    = sample_negatives(train_df, n_items, emb_pool=neg_pool)
+        neg_df    = sample_negatives(train_df, n_items, emb_pool=neg_pool, rng=rng)
         all_neg_t = torch.LongTensor(neg_df["neg_idx"].values)
 
         optimizer.zero_grad()
@@ -734,21 +757,23 @@ def train(
 
         if eval_every > 0 and epoch % eval_every == 0:
             raw_model.eval()
-            val_recall = _eval_recall_at_k(raw_model, adj, test_df, train_df, n_items, k=10)
+            val_metrics = _eval_ranking_at_k(raw_model, adj, val_df, train_df, n_items, k=10)
             raw_model.train()
-            _log_checkpoint(run_id, variant, epoch, val_recall)
-            if val_recall > best_recall:
-                best_recall = val_recall
+            _log_checkpoint(run_id, variant, epoch, val_metrics, seed)
+            if val_metrics["ndcg"] > best_ndcg:
+                best_ndcg = val_metrics["ndcg"]
+                best_val_metrics = val_metrics
                 best_state  = copy.deepcopy(raw_model.state_dict())
-                log.info("  [Epoch %d] val Recall@10=%.4f  *** new best ***", epoch, val_recall)
+                log.info("  [Epoch %d] val Hit@10=%.4f NDCG@10=%.4f  *** new best ***",
+                         epoch, val_metrics["hit"], val_metrics["ndcg"])
             else:
-                log.info("  [Epoch %d] val Recall@10=%.4f  (best=%.4f)",
-                         epoch, val_recall, best_recall)
+                log.info("  [Epoch %d] val Hit@10=%.4f NDCG@10=%.4f (best=%.4f)",
+                         epoch, val_metrics["hit"], val_metrics["ndcg"], best_ndcg)
 
     # ── Restore best checkpoint ────────────────────────────────────────────────
     if best_state is not None:
         raw_model.load_state_dict(best_state)
-        log.info("Loaded best checkpoint (val Recall@10=%.4f)", best_recall)
+        log.info("Loaded best checkpoint (val NDCG@10=%.4f)", best_ndcg)
 
     # ── Final evaluation ───────────────────────────────────────────────────────
     raw_model.eval()
@@ -760,7 +785,8 @@ def train(
 
     test_users  = test_df["user_idx"].values
     test_items  = test_df["item_idx"].values
-    train_items = train_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    seen_df = pd.concat([train_df, val_df], ignore_index=True) if publication_split else train_df
+    train_items = seen_df.groupby("user_idx")["item_idx"].apply(set).to_dict()
 
     hits, ndcg_sum, total = 0, 0.0, 0
     chunk = 4096
@@ -769,12 +795,13 @@ def train(
         end     = min(start + chunk, len(test_users))
         u_idx   = test_users[start:end]
         i_idx   = test_items[start:end]
-        scores  = (u_emb[u_idx] @ i_emb.T).cpu().numpy()
+        scores  = (u_emb[u_idx] @ i_emb.T).float().cpu().numpy()
 
         for k, (ui, ii) in enumerate(zip(u_idx, i_idx)):
             for ex in train_items.get(ui, set()):
                 scores[k, ex] = -np.inf
-            top10 = np.argsort(-scores[k])[:10]
+            top_idx = np.argpartition(-scores[k], 9)[:10]
+            top10 = top_idx[np.argsort(-scores[k, top_idx])]
             if ii in top10:
                 hits += 1
                 ndcg_sum += ndcg_at_k({ii}, top10.tolist(), 10)
@@ -787,6 +814,7 @@ def train(
     print(f"\n=== KGAT-SAL Results ===")
     print(f"  Precision@10: {precision:.4f}")
     print(f"  Recall@10:    {recall:.4f}")
+    print(f"  Hit@10:       {recall:.4f}  (one held-out item/user)")
     print(f"  NDCG@10:      {ndcg:.4f}")
 
     spatial_tag = "+spatial_cbg" if use_spatial_cbg else "no_spatial"
@@ -798,15 +826,27 @@ def train(
         skip_groups=skip_str,
         notes=(
             f"T={n_periods} d_temp={d_temporal} d_sal={d_sal} "
-            f"λ_sal={lambda_sal:.0e} kg_layers={n_kg_layers}"
+            f"λ_sal={lambda_sal:.0e} kg_layers={n_kg_layers} seed={seed} "
+            + (f"val_hit@10={best_val_metrics['hit']:.6f} "
+               f"val_ndcg@10={best_val_metrics['ndcg']:.6f} checkpoint=val_ndcg@10"
+               if best_val_metrics else "checkpoint=final")
         ),
     )
+    if publication_split:
+        save_publication_result(
+            "KGAT-SAL", condition_from_skip(skip_str), seed,
+            best_val_metrics, {"hit": float(recall), "ndcg": float(ndcg)},
+            epochs, emb_dim,
+        )
 
     if save:
         if _is_main_rank():
             spatial_suffix = "" if use_spatial_cbg else "_nospatial"
             file_tag   = f"skip_{skip_str.replace(',', '_')}" if skip_str else "all"
             file_tag   = f"{file_tag}_T{n_periods}{spatial_suffix}"
+            if publication_split:
+                file_tag += "_pubsplit"
+            file_tag += f"_seed{seed}"
             model_path = MODEL_OUT.parent / f"kgat_sal_{file_tag}.pt"
             model_path.parent.mkdir(exist_ok=True)
             EMB_OUT.mkdir(exist_ok=True)
@@ -822,7 +862,7 @@ def train(
                        EMB_OUT / f"kgat_sal_{file_tag}_item_embeddings.pt")
             log.info("Model → %s | Embeddings → %s", model_path, EMB_OUT)
 
-            save_predictions(u_emb, i_emb, train_df, test_df, user_enc, item_enc, file_tag)
+            save_predictions(u_emb, i_emb, seen_df, test_df, user_enc, item_enc, file_tag)
 
     return recall
 
@@ -863,6 +903,10 @@ def main():
                              "(user: base,extended,pref; item: base,nlp,extended,llm)")
     parser.add_argument("--no-spatial-cbg", action="store_true",
                         help="Disable CBG-CBG spatial KG triples")
+    parser.add_argument("--publication-split", action="store_true",
+                        help="Use chronological train/validation/test splits")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for initialization and negative sampling")
     args, _ = parser.parse_known_args()
     init_distributed()
 
@@ -891,6 +935,8 @@ def main():
         prebuilt_features    = args.prebuilt_features,
         skip_feature_groups  = skip_groups,
         use_spatial_cbg      = not args.no_spatial_cbg,
+        publication_split    = args.publication_split,
+        seed                 = args.seed,
     )
 
 

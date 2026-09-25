@@ -1,0 +1,16 @@
+[Unit]
+Description=Foodie audited 27B cuisine repair and publication handoff
+After=network.target foodie-ollama-gpu0.service foodie-ollama-gpu1.service
+Requires=foodie-ollama-gpu0.service foodie-ollama-gpu1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
+ExecStart=/home/swami/venv/dev_env/bin/python run_cuisine_repair_pipeline.py
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=120
+KillSignal=SIGINT
+
+[Install]
+WantedBy=default.target

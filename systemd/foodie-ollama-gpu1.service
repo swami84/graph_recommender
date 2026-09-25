@@ -1,0 +1,20 @@
+[Unit]
+Description=Project-local Ollama worker on GPU 1
+After=network.target
+
+[Service]
+Type=simple
+Environment=CUDA_VISIBLE_DEVICES=1
+Environment=OLLAMA_VULKAN=false
+Environment=GGML_VK_VISIBLE_DEVICES=-1
+Environment=OLLAMA_HOST=127.0.0.1:11437
+Environment=OLLAMA_MODELS=/usr/share/ollama/.ollama/models
+Environment=OLLAMA_NUM_PARALLEL=8
+Environment=OLLAMA_MAX_LOADED_MODELS=1
+ExecStartPre=/usr/bin/nvidia-smi -i 1
+ExecStart=/usr/local/bin/ollama serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

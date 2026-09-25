@@ -26,7 +26,7 @@ VLLM_PORT  = 8082
 VLLM_MODEL = "cyankiwi/Qwen3.5-9B-AWQ-BF16-INT8"
 MODEL_NAME = "qwen3.5-9b"
 
-CBG_FILE   = ROOT / "data" / "expansion_cbgs_50km.csv"
+CBG_FILE   = ROOT / "data" / "top10000_density_cbgs_incremental.csv"
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -53,8 +53,8 @@ parser.add_argument(
     help="Step to start from (default: 2). Use 3 to skip hexagon_places, 4 to skip reviews, etc.",
 )
 parser.add_argument(
-    "--cbg-file", default=str(ROOT / "data" / "expansion_cbgs_50km.csv"),
-    help="CBG list CSV to pass to hexagon_places.py (default: data/expansion_cbgs_50km.csv)",
+    "--cbg-file", default=str(CBG_FILE),
+    help="CBG list CSV to pass to hexagon_places.py (default: top-10k incremental queue)",
 )
 parser.add_argument(
     "--concurrency", type=int, default=10,
@@ -192,44 +192,23 @@ def _wait_vram_freed(timeout: int = 60) -> None:
 
 
 if args.start_step <= 4:
-    # Rebuild restaurants_enriched.parquet before LLM scripts so they see new restaurants
+    # Rebuild canonical tables before the leakage-safe Ollama feature pipeline.
     run_step("build_graph_data.py", ["python", "build_graph_data.py"])
-
-    vllm_proc = _start_vllm()
-    try:
-        _wait_healthy(timeout=300)
-
-        run_step(
-            "build_restaurant_llm_features.py",
-            [
-                "python", "build_restaurant_llm_features.py",
-                "--local-url",   f"http://localhost:{VLLM_PORT}",
-                "--local-model", MODEL_NAME,
-                "--resume",
-            ],
-        )
-
-        run_step(
-            "extract_dishes_llm.py",
-            [
-                "python", "extract_dishes_llm.py",
-                "--url",        f"http://localhost:{VLLM_PORT}",
-                "--model-name", MODEL_NAME,
-                "--resume",
-            ],
-        )
-    finally:
-        _kill_vllm(vllm_proc)
-        _wait_vram_freed(timeout=60)
+    run_step(
+        "build_llm_features_ollama.py",
+        [
+            "python", "build_llm_features_ollama.py", "--prepare",
+            "--with-embeddings", "--model", "qwen3-8b-fast:latest",
+            "--embedding-model", "qwen3-embedding:0.6b",
+        ],
+    )
 
 # ── Step 5: rebuild training features ─────────────────────────────────────────
 
 if args.start_step <= 5:
     for script in [
         "build_graph_data.py",
-        "build_nlp_features.py",
         "build_extended_features.py",
-        "build_user_preference_features.py",
         "build_training_features.py",
     ]:
         run_step(script, ["python", script])

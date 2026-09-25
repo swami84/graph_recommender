@@ -1,0 +1,57 @@
+cuisine,predicted_race,mean_rating,reviews,race
+Asian,nh_black,4.306709128298869,70024,Black
+Italian & Pizza,nh_white,4.064603372799463,202621,White
+Mexican & Latin,nh_black,4.118067567271693,182692,Black
+Fast Food & Burgers,api,3.5197858106396236,146039,Asian
+Fast Food & Burgers,nh_white,3.50457507734843,182292,White
+Chinese,nh_white,3.9452336067050107,83281,White
+Asian,api,4.281971973235702,110894,Asian
+Indian & South Asian,nh_white,4.364750460845224,29294,White
+Italian & Pizza,nh_black,4.044940710915556,144546,Black
+Sandwiches & Deli,nh_white,3.9600210356711276,89372,White
+Asian,nh_white,4.305634362233318,105744,White
+Bar & Pub,api,4.299581347150259,120625,Asian
+Chinese,api,3.985572809844711,85325,Asian
+Bar & Pub,nh_white,4.293423671859306,164271,White
+Mexican & Latin,nh_white,4.127292186341266,237328,White
+American & Comfort,hispanic,4.009894609932027,48107,Hispanic
+Mediterranean & Middle Eastern,api,4.355166869524711,66549,Asian
+Bar & Pub,hispanic,4.282236949762723,24444,Hispanic
+Chinese,nh_black,3.9092237685588067,60214,Black
+Japanese & Sushi,nh_white,4.311291144400285,98130,White
+Japanese & Sushi,nh_black,4.31448008067065,66443,Black
+BBQ & Steakhouse,hispanic,4.254771371769384,10060,Hispanic
+Café & Bakery,nh_black,3.9759102876958643,124576,Black
+BBQ & Steakhouse,nh_black,4.212395558858636,44403,Black
+Mexican & Latin,hispanic,4.122475188269911,80204,Hispanic
+Seafood,nh_black,4.195637583892617,32780,Black
+Café & Bakery,api,3.969807978744817,149046,Asian
+American & Comfort,nh_white,4.056720058716864,277944,White
+Café & Bakery,hispanic,3.963212345393596,34604,Hispanic
+Sandwiches & Deli,hispanic,3.9757019438444923,16668,Hispanic
+Bar & Pub,nh_black,4.29485684789477,112363,Black
+Mediterranean & Middle Eastern,nh_black,4.382606753436618,49249,Black
+Italian & Pizza,hispanic,4.055321459038854,38683,Hispanic
+Sandwiches & Deli,nh_black,3.950503073488486,65398,Black
+Mediterranean & Middle Eastern,hispanic,4.428963623884695,11656,Hispanic
+Chinese,hispanic,3.9364158462259726,17064,Hispanic
+Japanese & Sushi,api,4.302728506888033,89866,Asian
+Mexican & Latin,api,4.126022443950874,205757,Asian
+Mediterranean & Middle Eastern,nh_white,4.390863758310976,68584,White
+Seafood,nh_white,4.231036356334601,42331,White
+Asian,hispanic,4.3129936589164535,17978,Hispanic
+Seafood,hispanic,4.232249502322495,7535,Hispanic
+Japanese & Sushi,hispanic,4.345131205468343,17263,Hispanic
+Seafood,api,4.238374690935089,33569,Asian
+BBQ & Steakhouse,api,4.227120852333621,47587,Asian
+American & Comfort,nh_black,4.02810886266241,204882,Black
+BBQ & Steakhouse,nh_white,4.211003845851974,63705,White
+Indian & South Asian,api,4.1387709756582876,60308,Asian
+Indian & South Asian,hispanic,4.388433622102552,4271,Hispanic
+American & Comfort,api,4.040411797284781,214863,Asian
+Café & Bakery,nh_white,3.978602257068999,175626,White
+Sandwiches & Deli,api,3.9575078714926577,71778,Asian
+Fast Food & Burgers,hispanic,3.5272313221938707,36447,Hispanic
+Fast Food & Burgers,nh_black,3.4905928086926936,138139,Black
+Italian & Pizza,api,4.067556003325909,164767,Asian
+Indian & South Asian,nh_black,4.336163944369828,23081,Black

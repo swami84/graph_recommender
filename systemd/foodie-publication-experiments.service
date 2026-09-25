@@ -1,0 +1,18 @@
+[Unit]
+Description=Foodie frozen publication experiment (3 models x 2 conditions x 3 seeds)
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
+ExecStart=/home/swami/venv/dev_env/bin/python run_publication_rerun_pipeline.py
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=120
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

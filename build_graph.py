@@ -59,19 +59,19 @@ def build():
 
     # ── Restaurant nodes ───────────────────────────────────────────────────────
     log.info("Adding Restaurant nodes…")
-    for _, r in restaurants.iterrows():
-        nid = node_id("restaurant", r["place_id"])
+    for r in restaurants.itertuples(index=False):
+        nid = node_id("restaurant", r.place_id)
         G.add_node(nid,
             ntype="restaurant",
-            place_id=r["place_id"],
-            name=r.get("name", ""),
-            cuisine=r.get("cuisine_category", "Other"),
-            price_level=r.get("price_level"),
-            rating=r.get("rating"),
-            review_count=r.get("user_rating_count"),
-            lat=r.get("lat"),
-            lng=r.get("lng"),
-            cbg=r.get("cbg", ""),
+            place_id=r.place_id,
+            name=getattr(r, "name", ""),
+            cuisine=getattr(r, "cuisine_category", "Other"),
+            price_level=getattr(r, "price_level", None),
+            rating=getattr(r, "rating", None),
+            review_count=getattr(r, "user_rating_count", None),
+            lat=getattr(r, "lat", None),
+            lng=getattr(r, "lng", None),
+            cbg=getattr(r, "cbg", ""),
         )
 
     # ── Reviewer nodes ─────────────────────────────────────────────────────────
@@ -83,29 +83,29 @@ def build():
           "reviewer_reviews", "reviewer_photos",
           "predicted_race", "predicted_gender"]]
     )
-    for _, r in reviewer_agg.iterrows():
-        nid = node_id("reviewer", r["contributor_id"])
+    for r in reviewer_agg.itertuples(index=False):
+        nid = node_id("reviewer", r.contributor_id)
         G.add_node(nid,
             ntype="reviewer",
-            contributor_id=r["contributor_id"],
-            name=r.get("reviewer_name", ""),
-            is_local_guide=bool(r.get("is_local_guide", False)),
-            total_reviews=r.get("reviewer_reviews"),
-            total_photos=r.get("reviewer_photos"),
-            predicted_race=r.get("predicted_race"),
-            predicted_gender=r.get("predicted_gender"),
+            contributor_id=r.contributor_id,
+            name=getattr(r, "reviewer_name", ""),
+            is_local_guide=bool(getattr(r, "is_local_guide", False)),
+            total_reviews=getattr(r, "reviewer_reviews", None),
+            total_photos=getattr(r, "reviewer_photos", None),
+            predicted_race=getattr(r, "predicted_race", None),
+            predicted_gender=getattr(r, "predicted_gender", None),
         )
 
     # ── Dish nodes ─────────────────────────────────────────────────────────────
     if not dishes.empty:
         log.info("Adding Dish nodes…")
-        for _, d in dishes.iterrows():
-            nid = node_id("dish", d["dish_id"])
+        for d in dishes.itertuples(index=False):
+            nid = node_id("dish", d.dish_id)
             G.add_node(nid,
                 ntype="dish",
-                dish_id=d["dish_id"],
-                dish_name=d["dish_name"],
-                place_id=d["place_id"],
+                dish_id=d.dish_id,
+                dish_name=d.dish_name,
+                place_id=d.place_id,
             )
 
     # ── CBG nodes ──────────────────────────────────────────────────────────────
@@ -133,21 +133,21 @@ def build():
         (reviews["contributor_id"] != "") &
         reviews["place_id"].notna()
     ]
-    for _, r in valid.iterrows():
-        src = node_id("reviewer",    r["contributor_id"])
-        dst = node_id("restaurant",  r["place_id"])
+    for r in valid.itertuples(index=False):
+        src = node_id("reviewer", r.contributor_id)
+        dst = node_id("restaurant", r.place_id)
         if src in G and dst in G:
             G.add_edge(src, dst,
                 etype="REVIEWED",
-                review_id=r.get("review_id", ""),
-                rating=r.get("rating"),
-                has_content=bool(r.get("has_content", False)),
-                meal_type=r.get("meal_type"),
-                price_per_person=r.get("price_per_person"),
-                food_score=r.get("food_score"),
-                service_score=r.get("service_score"),
-                atmosphere_score=r.get("atmosphere_score"),
-                timestamp_days_ago=r.get("timestamp_days_ago"),
+                review_id=getattr(r, "review_id", ""),
+                rating=getattr(r, "rating", None),
+                has_content=bool(getattr(r, "has_content", False)),
+                meal_type=getattr(r, "meal_type", None),
+                price_per_person=getattr(r, "price_per_person", None),
+                food_score=getattr(r, "food_score", None),
+                service_score=getattr(r, "service_score", None),
+                atmosphere_score=getattr(r, "atmosphere_score", None),
+                timestamp_days_ago=getattr(r, "timestamp_days_ago", None),
             )
 
     # ── SERVES edges  (Restaurant → Dish) ─────────────────────────────────────
@@ -166,41 +166,43 @@ def build():
             .reset_index(name="mention_count")
             if not rev_dishes.empty else pd.DataFrame()
         )
-        for _, d in dishes.iterrows():
-            src = node_id("restaurant", d["place_id"])
-            dst = node_id("dish",       d["dish_id"])
+        mention_lookup = (
+            mention_counts.set_index(["place_id", "dish_id"])["mention_count"]
+            .to_dict()
+            if not mention_counts.empty else {}
+        )
+        for d in dishes.itertuples(index=False):
+            src = node_id("restaurant", d.place_id)
+            dst = node_id("dish", d.dish_id)
             if src in G and dst in G:
-                count = 1
-                if not mention_counts.empty:
-                    row = mention_counts[
-                        (mention_counts["place_id"] == d["place_id"]) &
-                        (mention_counts["dish_id"]  == d["dish_id"])
-                    ]
-                    if not row.empty:
-                        count = int(row["mention_count"].iloc[0])
+                count = int(mention_lookup.get((d.place_id, d.dish_id), 1))
                 G.add_edge(src, dst, etype="SERVES", mention_count=count)
 
     # ── LOCATED_IN edges  (Restaurant → CBG) ──────────────────────────────────
     log.info("Adding LOCATED_IN edges…")
-    for _, r in restaurants[restaurants["cbg"].notna()].iterrows():
-        src = node_id("restaurant", r["place_id"])
-        dst = node_id("cbg",        str(r["cbg"]))
+    for r in restaurants[restaurants["cbg"].notna()].itertuples(index=False):
+        src = node_id("restaurant", r.place_id)
+        dst = node_id("cbg", str(r.cbg))
         if src in G and dst in G:
             G.add_edge(src, dst, etype="LOCATED_IN")
 
     # ── HAS_CUISINE edges  (Restaurant → Cuisine) ─────────────────────────────
     log.info("Adding HAS_CUISINE edges…")
-    for _, r in restaurants[restaurants["cuisine_category"].notna()].iterrows():
-        src = node_id("restaurant", r["place_id"])
-        dst = node_id("cuisine",    r["cuisine_category"])
+    for r in restaurants[
+        restaurants["cuisine_category"].notna()
+    ].itertuples(index=False):
+        src = node_id("restaurant", r.place_id)
+        dst = node_id("cuisine", r.cuisine_category)
         if src in G and dst in G:
             G.add_edge(src, dst, etype="HAS_CUISINE")
 
     # ── Persist ────────────────────────────────────────────────────────────────
     log.info(f"Graph: {G.number_of_nodes():,} nodes, {G.number_of_edges():,} edges")
 
-    with open(GRAPH_FILE, "wb") as f:
+    temporary_graph = GRAPH_FILE.with_name(f".{GRAPH_FILE.name}.tmp")
+    with open(temporary_graph, "wb") as f:
         pickle.dump(G, f, protocol=pickle.HIGHEST_PROTOCOL)
+    temporary_graph.replace(GRAPH_FILE)
     log.info(f"Graph saved → {GRAPH_FILE}")
 
     # Stats breakdown

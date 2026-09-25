@@ -2,10 +2,10 @@
 """
 Build an expansion CBG list using two complementary signals:
 
-  1. Productive neighbors  — uncollected CBGs within 3 km of any CBG that
+  1. Productive neighbors  — uncollected CBGs immediately surrounding any CBG that
                              already yielded ≥1 restaurant (guaranteed density)
-  2. Population density    — uncollected CBGs with >500 people/km² within
-                             25 km of any collected CBG (catches dense
+  2. Population density    — uncollected CBGs with >3,000 people/km² within
+                             10 km of any collected CBG (catches dense
                              residential neighbourhoods we haven't visited)
 
 Output: data/expansion_cbgs_combined.csv  (column: cbg_str, 12-digit zero-padded)
@@ -120,9 +120,10 @@ print(f"Signal B (dense + within {DENS_BUFFER_M//1000} km, >{POP_DENSITY_THRESHO
 # ── Step 6: stratified by state, ranked by density within each, cap at TOP_K ──
 TOP_K = 2_000
 
-combined = (signal_a & signal_b) | (signal_a - signal_b)
-print(f"\nCombined (A∩B + A-only): {len(combined):,} CBGs  "
-      f"(A∩B: {len(signal_a & signal_b):,}, A-only: {len(signal_a - signal_b):,})")
+combined = signal_a | signal_b
+print(f"\nCombined (A∪B): {len(combined):,} CBGs  "
+      f"(A∩B: {len(signal_a & signal_b):,}, A-only: {len(signal_a - signal_b):,}, "
+      f"B-only: {len(signal_b - signal_a):,})")
 
 density_lookup = all_bg.set_index("cbg_str")["pop_density"]
 

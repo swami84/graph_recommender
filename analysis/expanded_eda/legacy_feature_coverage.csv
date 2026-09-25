@@ -1,0 +1,84 @@
+family,old_feature,current_equivalent,status,justification
+restaurant_semantic,rating_std,rating_std,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,photo_rate,photo_rate,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,repeat_visitor_rate,repeat_visitor_rate,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,local_guide_pct,local_guide_pct,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,restaurant_age_norm,restaurant_age_norm,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,race_rating_gap,race_rating_gap,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_authenticity_score,llm_authenticity,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_group_friendly,llm_group,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_date_night,llm_romantic,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_family_friendly,llm_family,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_business_dining,llm_business,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_solo_friendly,llm_solo,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_has_bar,llm_audited_has_bar,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_byob,llm_audited_byob,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_outdoor_seating,llm_outdoor,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_parking_available,llm_parking,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_vegan_options,llm_audited_offers_vegan,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_vegetarian_options,llm_audited_offers_vegetarian,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_gluten_free_options,llm_offers_gluten_free,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_halal,llm_offers_halal,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_kosher,llm_offers_kosher,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_takeout_friendly,llm_takeout,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_noise_level_enc,llm_noise,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_wait_time_enc,llm_wait,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_service_speed_enc,llm_service_speed,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_cuisine_american_comfort,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_asian_other,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_bbq_steakhouse,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_bar_pub,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_caf_bakery,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_chinese,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_fast_food_burgers,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_fine_dining,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_indian_south_asian,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_italian_pizza,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_japanese_sushi,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_mediterranean_middle_eastern,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_mexican_latin,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_other,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_sandwiches_deli,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_seafood,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_cuisine_soul_food,base cuisine + audited llm_cuisine27_*,replaced_with_justification,Old closed taxonomy and all-zero argmax produced invalid forced labels.
+restaurant_semantic,llm_meal_breakfast,llm_meal_breakfast,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_meal_brunch,llm_meal_brunch,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_meal_lunch,llm_meal_lunch,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_meal_dinner,llm_meal_dinner,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_meal_late_night,llm_meal_late_night,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_semantic,llm_meal_all_day,llm_meal_all_day,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,spice_level,llm_spice,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,noise_level,llm_noise,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,formality,llm_formality,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,novelty,llm_novelty,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,family_friendly,llm_family,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,romantic,llm_romantic,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,wait_time,llm_wait,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,value_for_money,llm_value,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,outdoor_seating,llm_outdoor,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,healthy_options,llm_healthiness,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,bar_scene,llm_nightlife,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_nlp,portion_size,llm_portion_size,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_dietary,user_vegan_affinity,user_llm_plant_based + user_llm_restriction_vegan,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_dietary,user_vegetarian_affinity,user_llm_plant_based + user_llm_restriction_vegetarian,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_dietary,user_gluten_free_affinity,user_llm_restriction_gluten_free,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_dietary,user_seafood_affinity,user_llm_seafood,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_dietary,user_red_meat_affinity,user_llm_red_meat,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_dietary,user_poultry_affinity,user_llm_poultry,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,spice_affinity,user_llm_spice,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,noise_preference,user_llm_noise,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,formality_preference,user_llm_formality,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,novelty_preference,user_llm_novelty,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,family_context,user_llm_family,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,romantic_context,user_llm_romantic,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,wait_tolerance,user_llm_wait,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,value_sensitivity,user_llm_value,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,outdoor_preference,user_llm_outdoor,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,healthy_preference,user_llm_healthiness,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,bar_affinity,user_llm_nightlife,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+user_preferences,portion_preference,user_llm_portion_size,retained_or_superseded,Renamed or represented by a richer evidence-aware schema.
+restaurant_dish,dish_count,dish_count,retained_or_superseded,Rebuilt from training-review dish links; excluded from the non-LLM condition.
+restaurant_dish,dish_cat_entropy,dish_cat_entropy,retained_or_superseded,Rebuilt from training-review dish links; excluded from the non-LLM condition.
+restaurant_dish,dish_flavor_div,dish_flavor_div,retained_or_superseded,Rebuilt from training-review dish links; excluded from the non-LLM condition.
+restaurant_dish,dish_cuisine_breadth,dish_cuisine_breadth,retained_or_superseded,Rebuilt from training-review dish links; excluded from the non-LLM condition.
+user_base,race_unknown,complete RaceBERT coverage + missingness audit,replaced_with_justification,"Exact historical RaceBERT emits one of five classes; after the repaired join there are zero missing race predictions, so this column would be constant zero."

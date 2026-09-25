@@ -1,25 +1,67 @@
-# Foodie Revamp — Restaurant Recommendation from Google Reviews
+# Foodie Revamp
 
-A GNN-based restaurant recommender built on ~2.5M Google reviews of high-traffic US Census Block Groups, with locally-hosted-LLM feature engineering and spatial re-ranking. The full 4-part technical write-up is in [`article/`](article/).
+Foodie Revamp is a restaurant recommendation study built from Google Places
+metadata and public Google Maps reviews. It evaluates conventional and
+LLM-derived user and restaurant features in a Two-Tower reference model,
+LightGCN, and KGAT-SAL, followed by validation-tuned geographic reranking and a
+GraphRAG explanation layer.
+
+## Current experiment
+
+The current frozen experiment is the September 2026 expanded dataset:
+
+- 158,981 eligible users;
+- 85,381 catalogued restaurants;
+- 67,947 restaurants in the full-catalogue ranking population;
+- 789,505 training, 158,981 validation, and 158,981 test interactions;
+- three seeds (42, 43, and 44), 300 epochs, and 1,024-dimensional embeddings.
+
+KGAT-SAL with LLM features is the strongest raw model. Its mean test metrics
+are Hit@10 0.02754 and NDCG@10 0.01367. Validation-only proximity tuning
+selected alpha 0.6, a 2.5 km bandwidth, and a candidate depth of 1,600,
+increasing mean test performance to Hit@10 0.04597 and NDCG@10 0.02206.
+
+See [the expanded result summary](results/expanded_2026-09-21/expanded_proximity_summary.md)
+and [experiment manifest](results/expanded_2026-09-21/experiment_manifest.json).
 
 ## Repository layout
 
-| Path | Contents |
+| Path | Purpose |
 |---|---|
-| [`article/`](article/) | The 4-part write-up (data → features → architectures → results), the series outline, and `RECONCILIATION.md` (results provenance / canonical-numbers decision) |
-| [`figures/`](figures/) | Publication figures and the scripts that generate them (`make_*.py`) |
-| [`results/`](results/) | Experiment logs — `model_results.csv`, `proximity_grid_search.csv`, `training_checkpoints.csv` |
-| `data/`, `models/` | Large artifacts — **git-ignored**; regenerate from the pipeline |
-| Literature PDFs (root) | The six reimplemented papers (InfoNCE-GCL, RaDAR, HEK-CL, Self-GNN, HGNN-AR, LIT-GRAPH) — see Part 3 references |
+| `article/` | Current technical-article drafts, figures, Google Docs-ready exports, and editorial handoff material |
+| `analysis/` | Reproducible EDA, segment evaluation, and supporting tables |
+| `results/expanded_2026-09-21/` | Current per-seed metrics, aggregate comparisons, proximity grid, and frozen selection |
+| `tests/` | Regression tests for split integrity, feature generation, collection safeguards, and GraphRAG remediation |
+| `systemd/` | User-service definitions for long-running collection and experiment jobs |
+| `literature/` | Literature index and cited research papers, organized by topic |
+| `data/`, `models/` | Large generated artifacts, excluded from Git |
+| `archive/` | Recoverable superseded artifacts, excluded from Git; see [ARCHIVE_INDEX.md](ARCHIVE_INDEX.md) |
 
-## Code (project root)
+## Main pipelines
 
-- **Data collection** — `hexagon_places.py`, `scrape_reviews*.py`, `expand_cbgs*.py`, `run_expansion_pipeline.py`, `build_graph*.py`
-- **Feature engineering** — `build_*_features.py`, `extract_dishes_llm.py`, `build_dish_embeddings.py`, `build_training_features.py`
-- **Models** — `recommendation_*.py` (matrix factorization, LightGCN, KGAT, contrastive, the InfoNCE-KGAT-SAL hybrid); training drivers `run_*.py`
-- **Post-processing** — `rerank_proximity.py` (spatial re-ranking), `explain_recommendations.py` (recommendation explanations)
-- **Analysis** — exploratory notebooks are **git-ignored** (their cell outputs may contain reviewer-level data); the reproducible EDA lives in [`figures/make_eda.py`](figures/make_eda.py)
+- Collection: `hexagon_places.py`, `run_places_then_reviews.py`,
+  `scrape_reviews_batch.py`, and `finalize_review_dataset.py`.
+- Feature generation: `build_llm_features_ollama.py`,
+  `prepare_incremental_feature_batch.py`,
+  `assemble_expanded_feature_contract.py`, and
+  `build_training_features.py`.
+- Model evaluation: `run_expanded_model_experiments.py`,
+  `recommendation_two_tower.py`, `recommendation_gnn.py`, and
+  `recommendation_kgat_sal.py`.
+- Geographic reranking: `run_publication_proximity.py`.
+- Explanation analysis: `run_publication_graphrag.py` and the scripts under
+  `analysis/`.
 
-## Canonical results
+## Environment
 
-All published numbers use the **unextended** dataset at embedding dimension 2048. A later dataset expansion degraded results and is excluded — see [`article/RECONCILIATION.md`](article/RECONCILIATION.md).
+The project has been run with Python 3.12 in
+`/home/swami/venv/dev_env`. Large data and checkpoint files are intentionally
+not stored in Git. Paths can be redirected through the `FOODIE_*` environment
+variables used by the pipeline scripts.
+
+## Reproducibility note
+
+The interaction split is chronological leave-two-out after user-restaurant
+deduplication. Behavioral and LLM-derived features are constructed from
+training evidence only. Validation selects checkpoints and proximity
+hyperparameters; the test split is evaluated after those choices are frozen.

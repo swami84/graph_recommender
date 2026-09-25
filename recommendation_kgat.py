@@ -97,11 +97,13 @@ N_RELATIONS  = 5
 CBG_SPATIAL_K = 5  # k nearest CBG neighbors per CBG
 
 TOP_DISH_N = 200   # keep top-200 most common dishes as KG entities
+DISHES_FILE = Path(os.environ.get("FOODIE_DISHES_FILE", "data/dishes.parquet"))
 
 
 # ── Knowledge Graph construction ───────────────────────────────────────────────
 
-def build_kg(item_enc: dict, use_spatial_cbg: bool = True) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
+def build_kg(item_enc: dict, use_spatial_cbg: bool = True,
+             use_dish_kg: bool = True) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
     """
     Build KG triples from restaurant side-information.
 
@@ -200,24 +202,28 @@ def build_kg(item_enc: dict, use_spatial_cbg: bool = True) -> tuple[torch.Tensor
     else:
         log.info("CBG spatial triples: disabled (--no-spatial-cbg)")
 
-    # ── Dish triples (top-200 dishes only) ────────────────────────────────────
-    dishes = pd.read_parquet("data/dishes.parquet", columns=["dish_name", "place_id"])
-    dishes = dishes[dishes["place_id"].isin(item_enc)]
-    top_dishes = (
-        dishes.groupby("dish_name")["place_id"].nunique()
-        .sort_values(ascending=False)
-        .head(TOP_DISH_N)
-        .index
-    )
-    dishes = dishes[dishes["dish_name"].isin(top_dishes)]
-    for row in dishes.itertuples(index=False):
-        item_idx = item_enc.get(row.place_id)
-        if item_idx is None:
-            continue
-        eid = _reg(dish_enc, row.dish_name)
-        heads.append(item_idx)
-        rels.append(REL_DISH)
-        tails.append(ent_offset + eid)
+    # Dish links are review-derived LLM information. Publication runs use a
+    # training-only link file, while the non-LLM condition omits this relation.
+    if use_dish_kg and DISHES_FILE.exists():
+        dishes = pd.read_parquet(DISHES_FILE, columns=["dish_name", "place_id"])
+        dishes = dishes[dishes["place_id"].isin(item_enc)]
+        top_dishes = (
+            dishes.groupby("dish_name")["place_id"].nunique()
+            .sort_values(ascending=False)
+            .head(TOP_DISH_N)
+            .index
+        )
+        dishes = dishes[dishes["dish_name"].isin(top_dishes)]
+        for row in dishes.itertuples(index=False):
+            item_idx = item_enc.get(row.place_id)
+            if item_idx is None:
+                continue
+            eid = _reg(dish_enc, row.dish_name)
+            heads.append(item_idx)
+            rels.append(REL_DISH)
+            tails.append(ent_offset + eid)
+    else:
+        log.info("Dish KG triples: disabled or no leakage-safe dish file")
 
     ent_offset += len(dish_enc)
 
@@ -514,7 +520,10 @@ def train(
                                     skip_groups=skip_feature_groups)
     adj = build_adj(train_df, n_users, n_items)
 
-    kg_heads, kg_rels, kg_tails, n_kg_ents = build_kg(item_enc, use_spatial_cbg=use_spatial_cbg)
+    use_dish_kg = "dish_llm" not in (skip_feature_groups or [])
+    kg_heads, kg_rels, kg_tails, n_kg_ents = build_kg(
+        item_enc, use_spatial_cbg=use_spatial_cbg, use_dish_kg=use_dish_kg
+    )
 
     model = KGAT(
         n_users=n_users,
