@@ -1,6 +1,6 @@
 import pytest
 
-from run_publication_graphrag import (
+from foodie.explanations.run_publication_graphrag import (
     add_evidence,
     attributes_align,
     cuisine_history_aligns,

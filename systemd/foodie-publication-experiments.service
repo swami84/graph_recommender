@@ -5,7 +5,7 @@ After=default.target
 [Service]
 Type=simple
 WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
-ExecStart=/home/swami/venv/dev_env/bin/python run_publication_rerun_pipeline.py
+ExecStart=/home/swami/venv/dev_env/bin/python -m foodie.modeling.run_publication_rerun_pipeline
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=120

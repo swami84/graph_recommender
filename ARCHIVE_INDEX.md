@@ -20,6 +20,9 @@ excluded from Git. The current experiment outputs remain under
   inference output.
 - `archive/remote_main_before_cleanup_2026-09-25.tar.gz`: exact snapshot of
   the GitHub `main` tree immediately before the repository cleanup.
+- `archive/repo_cleanup_2026-09-25/`: unused one-off scripts and obsolete
+  DeepSpeed configurations removed when the active Python modules were
+  reorganized into the `foodie/` package.
 
 The archive is intentionally local because it contains large generated files
 and historical artifacts. It is not deleted and can be restored by moving the

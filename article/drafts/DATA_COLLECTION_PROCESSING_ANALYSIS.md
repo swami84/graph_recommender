@@ -167,11 +167,11 @@ training initially assumes the generated values are usable.
 
 ## Reproducibility pointers
 
-- Queue construction: `build_top_density_queue.py`
-- Places collection: `hexagon_places.py`
-- Review freeze audit: `finalize_review_dataset.py`
-- Canonical tables: `build_graph_data.py`
-- LLM corpus and split manifest: `build_llm_features_ollama.py`
+- Queue construction: `foodie/collection/build_top_density_queue.py`
+- Places collection: `foodie/collection/hexagon_places.py`
+- Review freeze audit: `foodie/collection/finalize_review_dataset.py`
+- Canonical tables: `foodie/features/build_graph_data.py`
+- LLM corpus and split manifest: `foodie/features/build_llm_features_ollama.py`
 - Reproducible EDA: `analysis/expanded_eda/run_eda.py`
 - EDA report and figures: `analysis/expanded_eda/EDA_REPORT.md`
 

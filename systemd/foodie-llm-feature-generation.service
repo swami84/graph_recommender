@@ -6,7 +6,7 @@ Requires=foodie-ollama-gpu0.service foodie-ollama-gpu1.service
 [Service]
 Type=simple
 WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
-ExecStart=/home/swami/venv/dev_env/bin/python run_cuisine_repair_pipeline.py
+ExecStart=/home/swami/venv/dev_env/bin/python -m foodie.features.run_cuisine_repair_pipeline
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=120

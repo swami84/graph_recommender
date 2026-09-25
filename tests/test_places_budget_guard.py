@@ -4,7 +4,7 @@ import pytest
 import h3
 from shapely.geometry import Polygon
 
-from hexagon_places import PlacesBudgetExceeded, PlacesBudgetGuard, cbg_to_hexagons
+from foodie.collection.hexagon_places import PlacesBudgetExceeded, PlacesBudgetGuard, cbg_to_hexagons
 
 
 FIELDS = [

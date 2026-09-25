@@ -1,4 +1,4 @@
-from build_llm_features_ollama import CONFIDENCE_FIELDS, _validate_raw
+from foodie.features.build_llm_features_ollama import CONFIDENCE_FIELDS, _validate_raw
 
 
 def test_exact_duplicate_labels_are_normalized() -> None:

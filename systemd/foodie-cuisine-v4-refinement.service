@@ -6,7 +6,7 @@ Wants=foodie-ollama-gpu0.service foodie-ollama-gpu1.service
 [Service]
 Type=simple
 WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
-ExecStart=/home/swami/venv/dev_env/bin/python refine_unknown_cuisines_v4.py --concurrency 16 --log-every 100
+ExecStart=/home/swami/venv/dev_env/bin/python -m foodie.features.refine_unknown_cuisines_v4 --concurrency 16 --log-every 100
 Restart=on-failure
 RestartSec=15
 Environment=PYTHONUNBUFFERED=1

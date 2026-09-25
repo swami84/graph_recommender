@@ -65,8 +65,8 @@ cd /home/swami/Work/Projects/foodie_revamp
 export MPLCONFIGDIR=/tmp/foodie-mpl
 /home/swami/venv/dev_env/bin/python analysis/expanded_eda/make_publication_eda.py
 /home/swami/venv/dev_env/bin/python analysis/evaluation/make_segment_performance.py
-/home/swami/venv/dev_env/bin/python analyze_rating_aware_recommendations.py
-/home/swami/venv/dev_env/bin/python make_publication_results.py
+/home/swami/venv/dev_env/bin/python -m foodie.evaluation.analyze_rating_aware_recommendations
+/home/swami/venv/dev_env/bin/python -m foodie.evaluation.make_publication_results
 /home/swami/venv/dev_env/bin/python article/figures/make_graph_schema.py
 /home/swami/venv/dev_env/bin/python article/figures/make_feature_taxonomy.py
 /home/swami/venv/dev_env/bin/python article/figures/make_feature_contract_schematic.py

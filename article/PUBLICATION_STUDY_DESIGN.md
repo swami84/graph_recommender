@@ -66,24 +66,24 @@ reviews must never enter retrieval context.
 Core plan check (no training):
 
 ```bash
-/home/swami/venv/dev_env/bin/python run_focused_llm_experiments.py --dry-run
+/home/swami/venv/dev_env/bin/python -m foodie.modeling.run_focused_llm_experiments --dry-run
 ```
 
 Core training (resumes completed conditions automatically):
 
 ```bash
-/home/swami/venv/dev_env/bin/python run_focused_llm_experiments.py
+/home/swami/venv/dev_env/bin/python -m foodie.modeling.run_focused_llm_experiments
 ```
 
 Core summary and validation winner:
 
 ```bash
-/home/swami/venv/dev_env/bin/python summarize_publication_experiments.py
+/home/swami/venv/dev_env/bin/python -m foodie.modeling.summarize_publication_experiments
 ```
 
 After selecting a winner (example shown for KGAT-SAL):
 
 ```bash
-/home/swami/venv/dev_env/bin/python run_focused_llm_experiments.py \
+/home/swami/venv/dev_env/bin/python -m foodie.modeling.run_focused_llm_experiments \
   --models kgat_sal --conditions structured_only,embeddings_only
 ```

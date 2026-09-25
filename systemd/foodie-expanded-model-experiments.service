@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
-ExecStart=/home/swami/venv/dev_env/bin/python /home/swami/Work/Projects/foodie_revamp/run_expanded_model_experiments.py
+ExecStart=/home/swami/venv/dev_env/bin/python -m foodie.modeling.run_expanded_model_experiments
 Restart=on-failure
 RestartSec=60
 TimeoutStopSec=120

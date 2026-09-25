@@ -30,6 +30,11 @@ and [experiment manifest](results/expanded_2026-09-21/experiment_manifest.json).
 |---|---|
 | `article/` | Current technical-article drafts, figures, Google Docs-ready exports, and editorial handoff material |
 | `analysis/` | Reproducible EDA, segment evaluation, and supporting tables |
+| `foodie/collection/` | Places discovery, review scraping, budget controls, and dataset freezing |
+| `foodie/features/` | Canonical data preparation, feature generation, audits, and feature contracts |
+| `foodie/modeling/` | Recommender implementations, experiment runners, reranking, and summaries |
+| `foodie/explanations/` | GraphRAG generation, remediation, and explanation audits |
+| `foodie/evaluation/` | Publication tables and rating-aware evaluation |
 | `results/expanded_2026-09-21/` | Current per-seed metrics, aggregate comparisons, proximity grid, and frozen selection |
 | `tests/` | Regression tests for split integrity, feature generation, collection safeguards, and GraphRAG remediation |
 | `systemd/` | User-service definitions for long-running collection and experiment jobs |
@@ -39,18 +44,17 @@ and [experiment manifest](results/expanded_2026-09-21/experiment_manifest.json).
 
 ## Main pipelines
 
-- Collection: `hexagon_places.py`, `run_places_then_reviews.py`,
-  `scrape_reviews_batch.py`, and `finalize_review_dataset.py`.
-- Feature generation: `build_llm_features_ollama.py`,
-  `prepare_incremental_feature_batch.py`,
-  `assemble_expanded_feature_contract.py`, and
-  `build_training_features.py`.
-- Model evaluation: `run_expanded_model_experiments.py`,
-  `recommendation_two_tower.py`, `recommendation_gnn.py`, and
-  `recommendation_kgat_sal.py`.
-- Geographic reranking: `run_publication_proximity.py`.
-- Explanation analysis: `run_publication_graphrag.py` and the scripts under
-  `analysis/`.
+Run project entry points as modules from the repository root. For example:
+
+```bash
+/home/swami/venv/dev_env/bin/python -m foodie.collection.run_places_then_reviews --help
+/home/swami/venv/dev_env/bin/python -m foodie.features.build_training_features --help
+/home/swami/venv/dev_env/bin/python -m foodie.modeling.run_expanded_model_experiments
+/home/swami/venv/dev_env/bin/python -m foodie.explanations.run_publication_graphrag --help
+```
+
+See [SCRIPT_LAYOUT.md](docs/SCRIPT_LAYOUT.md) for the categorized inventory,
+entry-point convention, and archived-script decisions.
 
 ## Environment
 

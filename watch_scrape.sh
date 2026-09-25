@@ -5,8 +5,8 @@ while true; do
   L=$(ls -t logs/review_run_*.log | head -1)
   clear
   echo "=== $(date +%H:%M:%S)   log: $L"
-  echo "shards: $(pgrep -c -f 'scrape_reviews_batch.py --concurrency')  browsers: $(pgrep -c -x camoufox-bin)"
-  RATE=$(pgrep -af run_review_collection_guarded.py | grep -oP '(?<=--starts-per-minute )[0-9.]+' | head -1)
+  echo "shards: $(pgrep -c -f 'foodie.collection.scrape_reviews_batch --concurrency')  browsers: $(pgrep -c -x camoufox-bin)"
+  RATE=$(pgrep -af foodie.collection.run_review_collection_guarded | grep -oP '(?<=--starts-per-minute )[0-9.]+' | head -1)
   echo "configured rate: ${RATE:-<not running>}/min"
   echo "TargetClosedError: $(grep -c TargetClosedError "$L")   version.json: $(grep -c version.json "$L")   challenge: $(grep -icE '/sorry/|GoogleChallengeError|automated-traffic challenge' "$L")"
   python - <<'PY'

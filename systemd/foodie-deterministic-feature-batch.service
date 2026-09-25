@@ -6,7 +6,7 @@ Requires=foodie-ollama-gpu0.service foodie-ollama-gpu1.service
 [Service]
 Type=simple
 WorkingDirectory=/home/swami/Work/Projects/foodie_revamp
-ExecStart=/home/swami/venv/dev_env/bin/python /home/swami/Work/Projects/foodie_revamp/run_incremental_feature_batch.py --batch-dir data/feature_batches/places_expansion_2026-09-16_split_v2 --concurrency 12 --embedding-batch-size 8
+ExecStart=/home/swami/venv/dev_env/bin/python -m foodie.features.run_incremental_feature_batch --batch-dir data/feature_batches/places_expansion_2026-09-16_split_v2 --concurrency 12 --embedding-batch-size 8
 Restart=no
 TimeoutStopSec=120
 KillSignal=SIGINT

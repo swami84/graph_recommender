@@ -1,6 +1,6 @@
 import pandas as pd
 
-import build_llm_features_ollama as llm
+from foodie.features import build_llm_features_ollama as llm
 
 
 def test_model_and_feature_split_helper_is_row_order_invariant() -> None:

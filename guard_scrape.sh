@@ -21,7 +21,7 @@ PY
 
 start_run() {   # $1 = rate, $2 = log suffix
   local NEW="logs/review_run_$(date +%Y%m%d_%H%M%S)_$2.log"
-  nohup python run_review_collection_guarded.py --concurrency 12 --workers 4 \
+  nohup python -m foodie.collection.run_review_collection_guarded --concurrency 12 --workers 4 \
     --starts-per-minute "$1" --start-jitter 0.4 --chunk-size 100 --max-reviews 200 \
     > "$NEW" 2>&1 &
   disown
@@ -29,11 +29,11 @@ start_run() {   # $1 = rate, $2 = log suffix
 }
 
 stop_run() {
-  for pat in run_review_collection_guarded.py run_review_collection.py "scrape_reviews_batch.py --concurrency"; do
+  for pat in foodie.collection.run_review_collection_guarded foodie.collection.run_review_collection "foodie.collection.scrape_reviews_batch --concurrency"; do
     pgrep -f "$pat" | grep -v "^$$\$" | xargs -r kill 2>/dev/null
   done
   sleep 8
-  pgrep -f "scrape_reviews_batch.py --concurrency" | xargs -r kill -9 2>/dev/null
+  pgrep -f "foodie.collection.scrape_reviews_batch --concurrency" | xargs -r kill -9 2>/dev/null
   pkill -9 -x camoufox-bin 2>/dev/null
   sleep 3
 }
@@ -45,7 +45,7 @@ challenged() {
 log "guard armed: rate=${RATE}/min, stall=${STALL_SECS}s, max_restarts=${MAX_RESTARTS}"
 while [ "$(date +%s)" -lt "$DEADLINE" ]; do
   sleep 60
-  if ! pgrep -f run_review_collection_guarded.py >/dev/null; then
+  if ! pgrep -f foodie.collection.run_review_collection_guarded >/dev/null; then
     log "collection finished or stopped; guard exiting"; exit 0
   fi
   L=$(ls -t logs/review_run_*.log | head -1)

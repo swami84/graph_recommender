@@ -45,12 +45,12 @@ So the 48% low-entailment rate is an upper bound on generation failure, not a me
 
 | Path | Role |
 |---|---|
-| `run_publication_graphrag.py` | Everything below lives here: evidence assembly, prompts, judging, summary |
-| `run_publication_graphrag.py::prepare_evidence()` (~line 118) | Builds one evidence bundle per recommendation |
-| `run_publication_graphrag.py::add_evidence()` (~line 106) | Appends a node as `{id, kind, fact, source}` |
-| `run_publication_graphrag.py::generation_prompt()` (~line 312) | Explanation prompt |
-| `run_publication_graphrag.py::judge_prompt()` (~line 341) | Judging prompt |
-| `run_publication_graphrag.py::summarize()` (~line 445) | Aggregates the audit |
+| `foodie/explanations/run_publication_graphrag.py` | Everything below lives here: evidence assembly, prompts, judging, summary |
+| `foodie.explanations.run_publication_graphrag.prepare_evidence()` (~line 118) | Builds one evidence bundle per recommendation |
+| `foodie.explanations.run_publication_graphrag.add_evidence()` (~line 106) | Appends a node as `{id, kind, fact, source}` |
+| `foodie.explanations.run_publication_graphrag.generation_prompt()` (~line 312) | Explanation prompt |
+| `foodie.explanations.run_publication_graphrag.judge_prompt()` (~line 341) | Judging prompt |
+| `foodie.explanations.run_publication_graphrag.summarize()` (~line 445) | Aggregates the audit |
 | `results/graphrag/publication_graphrag_evidence.jsonl` | Frozen bundles, 100 rows |
 | `results/graphrag/publication_graphrag_generations.jsonl` | Frozen generations plus judge output, 100 rows |
 | `results/graphrag/publication_graphrag_results.parquet` | Flattened per-case scores and deterministic checks |
@@ -188,7 +188,7 @@ Regenerate explanations for the **same 79 matched users** with the `M` node remo
 
 ## 10. Deliverables
 
-1. A diff of `run_publication_graphrag.py` covering Tasks 1 to 3, plus any new CLI flags.
+1. A diff of `foodie/explanations/run_publication_graphrag.py` covering Tasks 1 to 3, plus any new CLI flags.
 2. A short report comparing, for the same 100 cases: original rubric and original serialization, new rubric on original generations, new rubric on regenerated generations. State how much of the 48% low-entailment rate was schema ambiguity, how much was the rubric, and what the residual genuine failure rate is.
 3. The scaled audit results with confidence intervals, including the activity-stratum breakdown that the small sample previously could not support.
 4. Inter-judge agreement statistics.
