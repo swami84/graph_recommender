@@ -6,7 +6,7 @@ LLM-derived user and restaurant features in a Two-Tower reference model,
 LightGCN, and KGAT-SAL, followed by validation-tuned geographic reranking and a
 GraphRAG explanation layer.
 
-## Current experiment
+## Dataset
 
 The current frozen experiment is the September 2026 expanded dataset:
 
@@ -16,13 +16,43 @@ The current frozen experiment is the September 2026 expanded dataset:
 - 789,505 training, 158,981 validation, and 158,981 test interactions;
 - three seeds (42, 43, and 44), 300 epochs, and 1,024-dimensional embeddings.
 
-KGAT-SAL with LLM features is the strongest raw model. Its mean test metrics
-are Hit@10 0.02754 and NDCG@10 0.01367. Validation-only proximity tuning
-selected alpha 0.6, a 2.5 km bandwidth, and a candidate depth of 1,600,
-increasing mean test performance to Hit@10 0.04597 and NDCG@10 0.02206.
+The underlying dataset is not distributed in this repository. Researchers
+interested in the dataset can email [swami.me@gmail.com](mailto:swami.me@gmail.com).
+
+## Key results
+
+All values below are mean full-catalogue test results across seeds 42, 43, and
+44. Model checkpoints were selected using validation NDCG@10.
+
+| Model | Feature set | Hit@10 | NDCG@10 |
+|---|---|---:|---:|
+| Feature Two-Tower | Conventional | 0.01487 | 0.00727 |
+| Feature Two-Tower | Conventional + LLM | 0.01530 | 0.00744 |
+| LightGCN | Conventional | 0.02101 | 0.01034 |
+| LightGCN | Conventional + LLM | 0.02167 | 0.01068 |
+| KGAT-SAL | Conventional | 0.02475 | 0.01234 |
+| **KGAT-SAL** | **Conventional + LLM** | **0.02754** | **0.01367** |
+| **KGAT-SAL + proximity** | **Conventional + LLM** | **0.04597** | **0.02206** |
+
+The principal findings are:
+
+- KGAT-SAL was the strongest raw recommender under both feature conditions.
+- LLM-derived features improved every architecture, but the gain was
+  asymmetric: KGAT-SAL improved by 11.3% in Hit@10 and 10.8% in NDCG@10,
+  compared with gains of 2.4–3.3% for Two-Tower and LightGCN.
+- Validation-only proximity tuning selected a blend weight of 0.6, a 2.5 km
+  bandwidth, and a candidate depth of 1,600. Applied to KGAT-SAL with LLM
+  features, it improved Hit@10 by 66.9% and NDCG@10 by 61.4% over the raw
+  model.
+- These results support the study's central hypothesis: semantic features are
+  most useful when the architecture can propagate relational information, but
+  geographic relevance remains a distinct signal that semantic modeling does
+  not replace.
 
 See [the expanded result summary](results/expanded_2026-09-21/expanded_proximity_summary.md)
-and [experiment manifest](results/expanded_2026-09-21/experiment_manifest.json).
+and [the complete model comparison](results/expanded_2026-09-21/comparison_report.md).
+The exact run configuration is recorded in the
+[experiment manifest](results/expanded_2026-09-21/experiment_manifest.json).
 
 ## Repository layout
 
