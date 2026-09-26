@@ -1,10 +1,10 @@
-# Foodie Revamp
+# From Review Text to Explainable Restaurant Recommendations
 
-Foodie Revamp is a restaurant recommendation study built from Google Places
-metadata and public Google Maps reviews. It evaluates conventional and
-LLM-derived user and restaurant features in a Two-Tower reference model,
-LightGCN, and KGAT-SAL, followed by validation-tuned geographic reranking and a
-GraphRAG explanation layer.
+This project studies restaurant recommendation using Google Places metadata
+and public Google Maps reviews. It evaluates conventional and LLM-derived user
+and restaurant features in a Two-Tower reference model, LightGCN, and
+KGAT-SAL, followed by validation-tuned geographic reranking and a GraphRAG
+explanation layer.
 
 ## Dataset
 
