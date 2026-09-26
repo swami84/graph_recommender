@@ -21,21 +21,3 @@ all relative data paths resolve from the project root.
 
 The unit tests, systemd units, shell monitoring tools, and internal subprocess
 commands all use these package-qualified module names.
-
-## Archived files reviewed on 2026-09-25
-
-These files had no live imports, subprocess callers, systemd callers, or test
-references. They are retained locally under
-`archive/repo_cleanup_2026-09-25/`, which is excluded from Git.
-
-| Former file | Decision |
-|---|---|
-| `build_dish_embeddings.py` | Superseded one-off local-vLLM dish profiler; current runs consume already-built dish artifacts |
-| `check_parquet_quality.py` | One-off audit with hard-coded local paths; current audits live under `analysis/` and `tests/` |
-| `ds_config.json` | Unused DeepSpeed ZeRO configuration; current model runners use native PyTorch |
-| `ds_config_2acc.json` | Unused DeepSpeed gradient-accumulation variant |
-| `expand_cbgs_50km.py` | Superseded by national-density, budgeted, and next-collection queue builders |
-| `graphrag_recommend.py` | Superseded by `foodie.explanations.run_publication_graphrag`, which enforces split-safe evidence and auditing |
-| `reconstruct_unextended_reviews.py` | Historical recovery tool for the overwritten pre-expansion interaction table |
-
-The archive is recoverable locally but intentionally not published to GitHub.

@@ -49,6 +49,14 @@ The principal findings are:
   geographic relevance remains a distinct signal that semantic modeling does
   not replace.
 
+### Effect of LLM-derived features
+
+![Full-catalogue model performance with conventional and LLM-derived features](docs/figures/model_feature_comparison.png)
+
+### Effect of proximity reranking
+
+![KGAT-SAL performance before and after validation-tuned proximity reranking](docs/figures/proximity_uplift.png)
+
 See [the expanded result summary](results/expanded_2026-09-21/expanded_proximity_summary.md)
 and [the complete model comparison](results/expanded_2026-09-21/comparison_report.md).
 The exact run configuration is recorded in the
@@ -70,7 +78,15 @@ The exact run configuration is recorded in the
 | `systemd/` | User-service definitions for long-running collection and experiment jobs |
 | `literature/` | Literature index and cited research papers, organized by topic |
 | `data/`, `models/` | Large generated artifacts, excluded from Git |
-| `archive/` | Recoverable superseded artifacts, excluded from Git; see [ARCHIVE_INDEX.md](ARCHIVE_INDEX.md) |
+
+## Data collection and review scraper
+
+The collection and scraper implementation is included in the repository under
+`foodie/collection/`. It contains the Google Places collector, API cost and
+budget safeguards, Camoufox-based Google Maps review scraper, concurrent batch
+runner, challenge-aware retry guard, dataset finalization checks, systemd units,
+and monitoring scripts. The collected data, browser state, credentials, and
+API keys are intentionally excluded from Git.
 
 ## Main pipelines
 
@@ -83,15 +99,8 @@ Run project entry points as modules from the repository root. For example:
 /home/swami/venv/dev_env/bin/python -m foodie.explanations.run_publication_graphrag --help
 ```
 
-See [SCRIPT_LAYOUT.md](docs/SCRIPT_LAYOUT.md) for the categorized inventory,
-entry-point convention, and archived-script decisions.
-
-## Environment
-
-The project has been run with Python 3.12 in
-`/home/swami/venv/dev_env`. Large data and checkpoint files are intentionally
-not stored in Git. Paths can be redirected through the `FOODIE_*` environment
-variables used by the pipeline scripts.
+See [SCRIPT_LAYOUT.md](docs/SCRIPT_LAYOUT.md) for the categorized inventory
+and entry-point convention.
 
 ## Reproducibility note
 
